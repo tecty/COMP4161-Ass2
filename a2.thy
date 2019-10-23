@@ -29,6 +29,8 @@ inductive_set connection :: "condition set \<Rightarrow> condition set"
       Joinable b c \<in> connection A\<rbrakk>
      \<Longrightarrow> Joinable a c \<in> connection A"
 
+print_theorems
+
 primrec is_refl :: "_" where
   "is_refl(Above a b) = (a = b)"
 | "is_refl(Joinable a b) = (a = b)"
@@ -56,17 +58,25 @@ subsection "Questions 1 (b)-(j)"
 lemma connection_monotonic:
   assumes "\<phi> \<in> connection A"
   shows   "\<phi> \<in> connection(A \<union> B)"
-  apply (rule con_in)
-  apply (rule UnI1)
-  
-  oops
+  using assms
+  apply (induct rule:connection.induct)
+       apply (auto intro:connection.intros)
+  done
+
+lemma connection_mono : 
+  "connection (connection A) \<subseteq> connection A"
+  apply (safe)
+  apply (erule connection.induct)
+  apply (simp_all add: connection.intros)
+  done
 
 (* 1-c *)
 lemma connection_idem:
   shows "connection(connection A) = connection A"
   apply (rule equalityI)
-  
-  oops
+  apply (simp add:  connection_mono)
+  apply (auto intro:connection.intros)
+  done
 
 (* 1-d *)
 lemma connection_decompose:
@@ -74,14 +84,28 @@ lemma connection_decompose:
   shows   "\<exists>C D. C \<subseteq> connection A \<and>
                  D \<subseteq> connection B \<and>
                  \<phi> \<in> connection(C \<union> D)"
-  (* TODO *)
-  oops
+  using assms
+  apply -
+  apply (simp add: connection.induct)
+  apply (auto intro:connection.intros)
+  done
 
 (* 1-e *)
+
+lemma connection_not_in_nil:
+  "x1 \<noteq> x2 \<Longrightarrow> Above x1 x2 \<notin>connection {}"
+  apply safe 
+  oops 
+
 lemma connection_nil:
   assumes "\<phi> \<in> connection {}"
   shows "is_refl \<phi>"
   (* TODO *)
+  using assms 
+  apply - 
+  apply (induct \<phi>)
+   apply (simp_all add: connection.induct)
+   
   oops
 
 (* 1-f *)
@@ -89,12 +113,22 @@ lemma con_is_refl:
   assumes "is_refl \<phi>"
   shows "\<phi> \<in> connection A"
   (* TODO *)
-  oops
+  using assms 
+  apply - 
+  apply (induct)
+   apply (simp_all add: connection.inducts)
+  apply (auto intro:connection.intros)
+  done 
+  
 
 (* 1-g *)
 lemma connection_filter_refl:
   assumes "\<phi> \<in> connection A"
   shows "\<phi> \<in> connection(A - {\<phi>. is_refl \<phi>})"
+  using assms 
+  apply - 
+
+
   (* TODO *)
   oops
 
@@ -104,6 +138,9 @@ lemma no_above_from_join_lemma:
   and "\<And>a b. Above a b \<notin> A" 
   shows "a = b"
   (* TODO *)
+  using assms
+  apply - 
+  
   oops
 
 (* 1-i *)
@@ -113,6 +150,12 @@ lemma connection_compose:
   and     "D \<subseteq> connection B"
   shows   "\<phi> \<in> connection(A \<union> B)"
   (* TODO *)
+  using assms 
+  apply - 
+  apply (intro connection_monotonic) 
+
+   
+  
   oops
 
 (* 1-j *)
@@ -120,6 +163,11 @@ lemma connection_compositional:
   assumes "connection A = connection B"
   shows   "connection(A \<union> C) = connection(B \<union> C)"
   (* TODO *)
+  using assms 
+  apply - 
+   
+  apply (simp_all add:assms)
+   
   oops
 
 section "Part 2"
