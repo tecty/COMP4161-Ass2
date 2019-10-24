@@ -138,24 +138,29 @@ lemma not_refl_wont_derive_nil:
   using is_refl.simps(1) by blast
 
 
-
 lemma not_refl_wont_derive_no_reason:
-  "\<And>a b . a \<noteq> b \<Longrightarrow>Above a b \<notin> connection A \<Longrightarrow> Above a b \<notin> A "
-  apply safe 
-  apply (simp add:connection.intros)
-  done
+  "\<lbrakk>a \<noteq> b; Above a b \<notin> A; Above a c \<in> A \<and> Above c b \<in> A \<rbrakk> \<Longrightarrow> Above a b \<in> connection A"
+  using connection.con_in connection.con_trans 
+  by blast
 
-
+lemma no_above_from_join_lemma_gen:
+  "\<forall> x \<in> A. x = Above c c \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
+  using connection_idem connection_monotonic not_refl_wont_derive_nil refl_wont_loss 
+  using le_iff_sup subsetI
+  by (metis is_refl.simps(1))
+  
 
 lemma no_above_from_join_lemma:
   assumes "Above a b \<in> connection A"
   and "\<And>a b. Above a b \<notin> A" 
   shows "a = b"
-  (* TODO *)
   using assms
-  apply -
+  using refl_wont_loss
+  using connection_filter_refl
+  using not_refl_wont_derive_no_reason
+  using  no_above_from_join_lemma_gen
+  apply - 
 
-  
   oops
 
 (* 1-i *)
@@ -197,13 +202,10 @@ lemma connection_compose:
 lemma connection_compositional:
   assumes "connection A = connection B"
   shows   "connection(A \<union> C) = connection(B \<union> C)"
-  (* TODO *)
   using assms 
-  apply - 
-   
-  apply (simp_all add:assms)
-   
-  oops
+  using connection_compose
+  by (metis connection_union_simp)   
+  
 
 section "Part 2"
 
