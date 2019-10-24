@@ -91,22 +91,14 @@ lemma connection_decompose:
   done
 
 (* 1-e *)
-
-lemma connection_not_in_nil:
-  "x1 \<noteq> x2 \<Longrightarrow> Above x1 x2 \<notin>connection {}"
-  apply safe 
-  oops 
-
 lemma connection_nil:
   assumes "\<phi> \<in> connection {}"
   shows "is_refl \<phi>"
   (* TODO *)
-  using assms 
-  apply - 
+  using assms
   apply (induct \<phi>)
-   apply (simp_all add: connection.induct)
-   
-  oops
+   apply (simp_all)
+  done
 
 (* 1-f *)
 lemma con_is_refl:
@@ -122,42 +114,85 @@ lemma con_is_refl:
   
 
 (* 1-g *)
+lemma refl_wont_loss: "is_refl x \<Longrightarrow> x \<in> connection A"
+  apply induct 
+  apply (auto intro: connection_nil con_is_refl)
+  done
+
 lemma connection_filter_refl:
   assumes "\<phi> \<in> connection A"
   shows "\<phi> \<in> connection(A - {\<phi>. is_refl \<phi>})"
   using assms 
-  apply - 
-
-
-  (* TODO *)
-  oops
+  using refl_wont_loss
+  apply induct
+  apply (simp_all add:connection.intros)
+  by (metis DiffI connection.con_in mem_Collect_eq)
+  
 
 (* 1-h *)
+lemma not_refl_wont_derive_nil:
+  "\<And>a b . a \<noteq> b \<Longrightarrow> Above a b \<notin> connection {} "
+  apply safe
+  using connection.inducts
+  using connection_nil 
+  using is_refl.simps(1) by blast
+
+
+
+lemma not_refl_wont_derive_no_reason:
+  "\<And>a b . a \<noteq> b \<Longrightarrow>Above a b \<notin> connection A \<Longrightarrow> Above a b \<notin> A "
+  apply safe 
+  apply (simp add:connection.intros)
+  done
+
+
+
 lemma no_above_from_join_lemma:
   assumes "Above a b \<in> connection A"
   and "\<And>a b. Above a b \<notin> A" 
   shows "a = b"
   (* TODO *)
   using assms
-  apply - 
+  apply -
+
   
   oops
 
 (* 1-i *)
+lemma "\<lbrakk> x \<in> C \<union> D ;C \<subseteq> A ; D \<subseteq> B \<rbrakk> \<Longrightarrow> x \<in> A \<union> B"
+  by blast
+
+lemma connections_idem_simp: "x \<in> connection (connection C) \<Longrightarrow> x \<in> connection C"
+  using connection_idem
+  by blast
+
+lemma connection_subset_simp: "x \<in> connection A \<Longrightarrow> A \<subseteq> B \<Longrightarrow> x \<in> connection B"
+  by (metis connection_monotonic le_iff_sup)
+
+lemma connection_subset_con_simp: "x \<in> connection A \<Longrightarrow> A \<subseteq> connection B \<Longrightarrow> x \<in> connection B"
+  using connections_idem_simp connection_subset_simp 
+  by blast
+
+lemma connection_union_subset: 
+  "\<lbrakk>A\<subseteq>C; B\<subseteq>D \<rbrakk> \<Longrightarrow> connection(A\<union> B) \<subseteq> connection (C\<union> D)"
+  by (meson Un_mono connection_subset_simp subset_eq)
+
+lemma connection_union_simp:
+  "connection(connection A \<union> connection B) = connection(A \<union> B)"
+  apply safe
+  using connection_union_subset connection_subset_con_simp 
+  apply (metis (no_types, lifting) sup.bounded_iff sup.idem sup_ge2)
+  using connection_decompose connection_union_subset by blast
+
 lemma connection_compose:
   assumes "\<phi> \<in> connection(C \<union> D)"
   and     "C \<subseteq> connection A"
   and     "D \<subseteq> connection B"
   shows   "\<phi> \<in> connection(A \<union> B)"
-  (* TODO *)
-  using assms 
-  apply - 
-  apply (intro connection_monotonic) 
-
-   
+  using assms
+  using connection_union_subset connection_subset_con_simp connection_union_simp
+  by (smt connection_idem)
   
-  oops
-
 (* 1-j *)
 lemma connection_compositional:
   assumes "connection A = connection B"
