@@ -29,33 +29,28 @@ inductive_set connection :: "condition set \<Rightarrow> condition set"
       Joinable b c \<in> connection A\<rbrakk>
      \<Longrightarrow> Joinable a c \<in> connection A"
 
+print_theorems
+
 primrec is_refl :: "_" where
   "is_refl(Above a b) = (a = b)"
 | "is_refl(Joinable a b) = (a = b)"
 
 section "Question 1 (a)"
 
-definition router1 
-  where "router1= 0"
-definition router2 
-  where "router2= 1"
-definition computer1 
-  where "computer1= 2"
-definition computer2 
-  where "computer2= 3"
-definition computer3 
-  where "computer3= 4"
 
+(*4 is router1 5 is router2*)
 definition example_network where
 "example_network = {
-  Above computer1 router1, Above  computer2 router1, 
-  Above computer2 router1, Above  computer3 router2}"
+Above 1 4 , Above 2 4, Above 2 5 , Above 3 5
+}"  (* TODO *)
 
-lemma "Joinable computer1 computer2 \<in> connection example_network"
+lemma "Joinable 1 2 \<in> connection example_network"
   apply (unfold example_network_def)
-  apply (rule_tac b=router1 in con_join)
-   apply (rule con_in, blast) +
-  done
+  apply (rule_tac b=4 in con_join)
+   apply (rule con_in)
+   apply (blast)
+  apply (simp add:con_in)
+  done 
 
 subsection "Questions 1 (b)-(j)"
 
@@ -64,22 +59,24 @@ lemma connection_monotonic:
   assumes "\<phi> \<in> connection A"
   shows   "\<phi> \<in> connection(A \<union> B)"
   using assms
-  apply (induct)
-  by (simp_all add:connection.intros)
-  
+  apply (induct rule:connection.induct)
+       apply (auto intro:connection.intros)
+  done
+
+lemma connection_mono : 
+  "connection (connection A) \<subseteq> connection A"
+  apply (safe)
+  apply (erule connection.induct)
+  apply (simp_all add: connection.intros)
+  done
 
 (* 1-c *)
-lemma connection_monotonic_simp:
-  "connection A \<subseteq> connection (A \<union> B)"
-  using connection_monotonic 
-  by blast
-
 lemma connection_idem:
   shows "connection(connection A) = connection A"
-  apply safe
-   apply (erule connection.induct)
-  by (auto intro:connection.intros)
-  
+  apply (rule equalityI)
+  apply (simp add:  connection_mono)
+  apply (auto intro:connection.intros)
+  done
 
 (* 1-d *)
 lemma connection_decompose:
@@ -88,59 +85,58 @@ lemma connection_decompose:
                  D \<subseteq> connection B \<and>
                  \<phi> \<in> connection(C \<union> D)"
   using assms
-  using connection_monotonic_simp connection_idem 
-  by (meson connection.con_in subsetI)
+  apply -
+  apply (simp add: connection.induct)
+  apply (auto intro:connection.intros)
+  done
 
 (* 1-e *)
 lemma connection_nil:
   assumes "\<phi> \<in> connection {}"
   shows "is_refl \<phi>"
-  apply (rule connection.induct)
-        apply (simp_all)
-  using assms by blast+
+  (* TODO *)
+  using assms
+  apply (induct \<phi>)
+   apply (simp_all)
+  done
 
 (* 1-f *)
-lemma join_refl: "Joinable a a \<in> connection A"
-  apply (rule_tac b="a" in con_join) 
-  by (rule con_refl)+
-
 lemma con_is_refl:
   assumes "is_refl \<phi>"
   shows "\<phi> \<in> connection A"
   (* TODO *)
   using assms 
-  apply (unfold is_refl_def)
-  apply induct
-   apply simp_all
-   apply (rule con_refl)
-  apply (rule join_refl)
+  apply - 
+  apply (induct)
+   apply (simp_all add: connection.inducts)
+  apply (auto intro:connection.intros)
+  done 
+  
+
+(* 1-g *)
+lemma refl_wont_loss: "is_refl x \<Longrightarrow> x \<in> connection A"
+  apply induct 
+  apply (auto intro: connection_nil con_is_refl)
   done
 
-(* 1-g *)  
 lemma connection_filter_refl:
   assumes "\<phi> \<in> connection A"
   shows "\<phi> \<in> connection(A - {\<phi>. is_refl \<phi>})"
-  using assms
-  using con_is_refl
+  using assms 
+  using refl_wont_loss
   apply induct
   apply (simp_all add:connection.intros)
   by (metis DiffI connection.con_in mem_Collect_eq)
   
+
 (* 1-h *)
-lemma joinable_or_above:
-  "x \<in> A \<Longrightarrow>\<exists> a b. x = Joinable a b \<or> x = Above a b"
-  apply induct by blast +
-
-lemma only_joinable_set:
-  "\<And>a b. Above a b \<notin> A \<Longrightarrow> (\<forall> x. x \<in> A \<Longrightarrow> x = Joinable c d)"
-  by simp
-
 lemma not_refl_wont_derive_nil:
   "\<And>a b . a \<noteq> b \<Longrightarrow> Above a b \<notin> connection {} "
   apply safe
   using connection.inducts
   using connection_nil 
   using is_refl.simps(1) by blast
+
 
 lemma not_refl_wont_derive_no_reason:
   "\<lbrakk>a \<noteq> b; Above a b \<notin> A; Above a c \<in> A \<and> Above c b \<in> A \<rbrakk> \<Longrightarrow> Above a b \<in> connection A"
@@ -149,72 +145,92 @@ lemma not_refl_wont_derive_no_reason:
 
 lemma no_above_from_join_lemma_gen:
   "\<forall> x \<in> A. x = Above c c \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
-  using connection_idem connection_monotonic not_refl_wont_derive_nil
+  using connection_idem connection_monotonic not_refl_wont_derive_nil refl_wont_loss 
   using le_iff_sup subsetI
-  by (metis con_is_refl is_refl.simps(1) subset_eq)
+  by (metis is_refl.simps(1))
 
-lemma must_jump_by_above:
-  " a \<noteq> c \<Longrightarrow>(\<exists>b. a \<noteq>b \<and> Above a b\<in> A\<and> Above b c \<in> A) = (Above a c \<in> connection A )"
-  (* TODO *)
-  apply (safe)
-  using connection.con_in connection.con_trans apply blast
-  using not_refl_wont_derive_no_reason no_above_from_join_lemma_gen
+lemma refl_derive_no_reson_2:
+  "\<And>a b. Above a b \<notin> A \<Longrightarrow> Above a a \<in> connection A \<and> Above b b \<in> connection A"
+  using connection.intros
+  by blast
+
+lemma 
+  "\<And>a b c. \<lbrakk>a \<noteq> b; a \<noteq> c; Above a c \<notin> connection A ; Above c b \<notin> connection A\<rbrakk> \<Longrightarrow> Above a b \<notin> connection A"
+  apply (case_tac "c = b")
+   apply simp 
+  oops 
+
+lemma must_be_above_or_joinable:
+  " x \<in> A \<Longrightarrow>\<exists> a b. x = Joinable a b \<or> x = Above a b"
+  using condition.exhaust by blast
+
+lemma no_joinable_from_join_lemma_gen:
+  "\<forall> x \<in> A. x = Joinable c d \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
+  using connection.intros 
+  using connection.inducts 
+  sorry 
+
+
+
+lemma have_not_have_able_only_joinable:
+ " x \<in> A\<Longrightarrow> \<lbrakk>\<And>a b. Above a b \<notin> A\<rbrakk> \<Longrightarrow>  x = Joinable c d" 
+
   sorry
+
 
 lemma no_above_from_join_lemma:
   assumes "Above a b \<in> connection A"
   and "\<And>a b. Above a b \<notin> A" 
   shows "a = b"
-  using connection_filter_refl 
-  using assms 
-  using must_jump_by_above
+  using assms
+  using no_joinable_from_join_lemma_gen
+  using have_not_have_able_only_joinable
   by meson
-
+ 
 
 (* 1-i *)
+lemma "\<lbrakk> x \<in> C \<union> D ;C \<subseteq> A ; D \<subseteq> B \<rbrakk> \<Longrightarrow> x \<in> A \<union> B"
+  by blast
+
+lemma connections_idem_simp: "x \<in> connection (connection C) \<Longrightarrow> x \<in> connection C"
+  using connection_idem
+  by blast
+
+lemma connection_subset_simp: "x \<in> connection A \<Longrightarrow> A \<subseteq> B \<Longrightarrow> x \<in> connection B"
+  by (metis connection_monotonic le_iff_sup)
+
+lemma connection_subset_con_simp: "x \<in> connection A \<Longrightarrow> A \<subseteq> connection B \<Longrightarrow> x \<in> connection B"
+  using connections_idem_simp connection_subset_simp 
+  by blast
+
+lemma connection_union_subset: 
+  "\<lbrakk>A\<subseteq>C; B\<subseteq>D \<rbrakk> \<Longrightarrow> connection(A\<union> B) \<subseteq> connection (C\<union> D)"
+  by (meson Un_mono connection_subset_simp subset_eq)
+
+lemma connection_union_simp:
+  "connection(connection A \<union> connection B) = connection(A \<union> B)"
+  apply safe
+  using connection_union_subset connection_subset_con_simp 
+  apply (metis (no_types, lifting) sup.bounded_iff sup.idem sup_ge2)
+  using connection_decompose connection_union_subset by blast
+
 lemma connection_compose:
   assumes "\<phi> \<in> connection(C \<union> D)"
   and     "C \<subseteq> connection A"
   and     "D \<subseteq> connection B"
   shows   "\<phi> \<in> connection(A \<union> B)"
-  (* TODO *)
-  using connection_decompose
-proof -
-have f1: "\<forall>C Ca. (C::condition set) \<union> Ca = Ca \<or> Ca \<union> C \<noteq> Ca"
-  by blast
-  have f2: "\<forall>C Ca. (Ca::condition set) \<union> (C \<union> C) = Ca \<union> C"
-    by blast
-  have f3: "D \<union> connection B = connection B"
-    using assms(3) by blast
-  have f4: "\<forall>Ca. \<phi> \<in> connection Ca \<or> Ca \<union> (C \<union> D) \<noteq> Ca"
-using f1 by (metis assms(1) connection_monotonic)
-  have f5: "C \<union> connection A = connection A"
-using assms(2) by blast
-  have "\<forall>C. D \<union> connection C = connection C \<or> C \<union> B \<noteq> C"
-    using f3 f1 by (metis connection_monotonic_simp le_iff_sup sup_assoc)
-  then have "C \<union> (D \<union> connection (A \<union> B)) = connection (A \<union> B)"
-    using f5 f2 by (metis (no_types) connection_monotonic_simp le_iff_sup sup_assoc)
-  then show ?thesis
-    using f4 by (metis (no_types) connection_idem le_iff_sup sup.order_iff sup_assoc)
-qed
-
-
+  using assms
+  using connection_union_subset connection_subset_con_simp connection_union_simp
+  by (smt connection_idem)
+  
 (* 1-j *)
-lemma connection_union_simp:
-  "connection (connection A \<union> connection B) = connection (A \<union> B)"
-  using connection_compose
-  apply safe
-   apply blast
-  by (smt connection_decompose connection_idem)
-
-
 lemma connection_compositional:
   assumes "connection A = connection B"
   shows   "connection(A \<union> C) = connection(B \<union> C)"
   using assms 
-  using connection_compose 
-  by (metis connection_union_simp)
-
+  using connection_compose
+  by (metis connection_union_simp)   
+  
 
 section "Part 2"
 
@@ -234,6 +250,7 @@ primrec frame :: "process \<Rightarrow> condition set" where
 | "frame(Par P Q) = frame P \<union> frame Q"
 | "frame(Input \<phi> P) = {}"
 | "frame(Output \<phi> P) = {}"
+
 
 inductive semantics :: "condition set \<Rightarrow> process \<Rightarrow> action \<Rightarrow> process \<Rightarrow> bool"
   where
@@ -269,39 +286,34 @@ subsection "Questions 2 (a)-(c)"
 lemma semantics_monotonic:
   assumes "semantics A P \<alpha> Q"
   shows "semantics (A \<union> B) P \<alpha> Q"
-  using assms connection_monotonic
+  using assms 
   apply induct 
-      apply (simp_all add:semantics.intros)
-     apply (metis semantics_par_l sup_assoc sup_commute)
-    apply (simp add: Un_left_commute semantics_par_r sup.commute)
-   apply (simp add: semantics_par_l sup_assoc)
-  apply (smt inf_sup_aci(5) semantics_com_l subset_iff sup.assoc)
-  by (smt inf_sup_aci(5) semantics_com_r sup.assoc)
-
-
+       apply (simp_all add:semantics.intros sup_assoc sup_commute  sup_left_commute)
+   apply (smt Un_assoc connection_monotonic inf_sup_aci(5) semantics_com_l)
+  apply (smt Un_commute connection_monotonic semantics_com_r sup_assoc)
+  done 
+ 
 (* 2-b *)
 lemma semantics_empty_env:
   assumes "semantics A P \<alpha> Q"
   shows "\<exists>\<beta> Q'. semantics {} P \<beta> Q'"
-  using assms 
-  apply (induct,simp_all add:semantics.intros)
-  using semantics_input apply blast
-  using semantics_output apply blast
-  using semantics_monotonic semantics_par_l apply blast
-  using semantics_monotonic semantics_par_r apply blast
-  using semantics_monotonic semantics_par_r apply blast
-  by (meson semantics_monotonic semantics_par_r)
- 
+  (* TODO *)
+  
+  apply (rule_tac exI)+
+  using assms
+  apply induct
+  
+
+  oops
 
 (* 2-c *)
 lemma semantics_swap_frame:
   assumes "semantics A P \<alpha> Q"
   and "connection A = connection B"
   shows "semantics B P \<alpha> Q"
-  (* TODO *)
   using assms 
-  apply (induct,simp_all add:semantics.intros)
- 
+  apply - 
+  apply induct 
   oops
 
 section "Part 3"
