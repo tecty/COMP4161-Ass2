@@ -294,15 +294,34 @@ lemma semantics_empty_env:
  
 
 (* 2-c *)
+lemma semantics_swap_frame_with_con:
+  assumes "semantics A P \<alpha> Q"
+  and "B = connection A"
+  shows "semantics B P \<alpha> Q"
+  using assms 
+  by (metis connection.con_in le_iff_sup semantics_monotonic subsetI)
+
+lemma semantics_swap_frame_with_con_rev:
+  assumes "semantics A P \<alpha> Q"
+  and "A = connection B"
+  shows "semantics B P \<alpha> Q"
+  (*Sorry HERE TODO *)
+  using assms
+  apply - 
+  apply (frule semantics.induct)
+        apply (simp_all add:semantics.intros  semantics_monotonic)
+  
+  sorry
+
+
 lemma semantics_swap_frame:
   assumes "semantics A P \<alpha> Q"
   and "connection A = connection B"
   shows "semantics B P \<alpha> Q"
   (* TODO *)
   using assms 
-  apply (induct,simp_all add:semantics.intros)
- 
-  oops
+  using semantics_swap_frame_with_con_rev
+  using semantics_swap_frame_with_con by blast
 
 section "Part 3"
 
@@ -315,8 +334,10 @@ primrec list_trans :: "_" where
 | "list_trans A P (\<alpha>#tr) Q =
     (\<exists>R. semantics A P \<alpha> R \<and> list_trans A R tr Q)"
 
+
 definition traces_of :: "process \<Rightarrow> action list set"
   where "traces_of P = {tr | tr. \<exists>Q. list_trans {} P tr Q \<and> stuck Q}"
+
 
 definition trace_eq :: "process \<Rightarrow> process \<Rightarrow> bool"
   where "trace_eq P Q = (traces_of P = traces_of Q)"
@@ -325,21 +346,20 @@ subsection "Question 3 (a)"
 
 lemma trace_eq_refl:
   shows "trace_eq P P"
-  (* TODO *)
-  oops
+  by (simp add: trace_eq_def)
 
 lemma trace_eq_sym:
   assumes "trace_eq P Q"
     shows "trace_eq Q P"
-  (* TODO *)
-  oops
+  using assms trace_eq_def by auto 
+  
 
 lemma trace_eq_trans:
   assumes "trace_eq P Q"
       and "trace_eq Q R"
     shows "trace_eq P R"
-  (* TODO *)
-  oops
+  using assms 
+  by (simp add:trace_eq_def)
 
 subsection "Question 3 (b)"
 
@@ -347,16 +367,23 @@ lemma trace_eq_stuck:
   assumes "stuck P"
       and "stuck Q"
     shows "trace_eq P Q"
-  (* TODO *)
-  oops
+  using assms 
+  apply (unfold trace_eq_def traces_of_def)
+  apply (unfold stuck_def)
+  apply safe
+  apply (metis list.exhaust list_trans.simps(1) list_trans.simps(2))
+  by (metis list.exhaust list_trans.simps(1) list_trans.simps(2))
+  
 
 subsection "Question 3 (c)"
 
 lemma traces_of_monotonic:
   assumes "stuck R"
   shows "traces_of P \<subseteq> traces_of (Par P R)"
-  (* TODO *)
-  oops
+  apply safe 
+  apply (unfold traces_of_def)
+  
+  sorry
 
 subsection "Question 3 (d)"
 
@@ -369,6 +396,7 @@ lemma traces_of_not_antimonotonic:
   assumes "\<And>P R. stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
   shows "False"
   (* TODO *)
+
   oops
 
 subsection "Question 3 (f)"
@@ -379,7 +407,8 @@ lemma semantics_par_assoc1:
            R = Par P' (Par Q' S') \<and>
            semantics A (Par (Par P Q) S) \<alpha> (Par (Par P' Q') S')"
   (* TODO *)
-  oops
+  
+  sorry
 
 text \<open>
   This similar lemma will be needed later.
