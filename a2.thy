@@ -258,6 +258,7 @@ inductive semantics :: "condition set \<Rightarrow> process \<Rightarrow> action
       Joinable n m \<in> connection(A \<union> frame P \<union> frame Q)\<rbrakk>
      \<Longrightarrow> semantics A (Par P Q) LTau (Par P' Q')"
 
+
 inductive_cases
   par: "semantics A (Par P Q) x R" and
   nil: "semantics A Nil x R" and
@@ -277,9 +278,17 @@ lemma semantics_monotonic:
    apply (simp add: semantics_par_l sup_assoc)
   apply (smt inf_sup_aci(5) semantics_com_l subset_iff sup.assoc)
   by (smt inf_sup_aci(5) semantics_com_r sup.assoc)
-
+thm semantics_monotonic[OF semantics_par_l]
 
 (* 2-b *)
+lemma semantics_monotonic_par_l:
+  "semantics (A \<union> frame Q) P \<alpha> P' \<Longrightarrow> semantics (A \<union> B) (Par P Q) \<alpha> (Par P' Q)"
+  by (frule semantics_monotonic[OF semantics_par_l])
+
+lemma semantics_monotonic_par_r:
+  "semantics (A \<union> frame P) Q \<alpha> Q' \<Longrightarrow> semantics (A \<union> B) (Par P Q) \<alpha> (Par P Q')"
+  by (frule semantics_monotonic[OF semantics_par_r])
+
 lemma semantics_empty_env:
   assumes "semantics A P \<alpha> Q"
   shows "\<exists>\<beta> Q'. semantics {} P \<beta> Q'"
@@ -291,7 +300,6 @@ lemma semantics_empty_env:
   using semantics_monotonic semantics_par_r apply blast
   using semantics_monotonic semantics_par_r apply blast
   by (meson semantics_monotonic semantics_par_r)
- 
 
 (* 2-c *)
 lemma semantics_swap_frame_with_con:
@@ -301,24 +309,36 @@ lemma semantics_swap_frame_with_con:
   using assms 
   by (metis connection.con_in le_iff_sup semantics_monotonic subsetI)
 
+lemma semantics_mono_gen: 
+  "semantics A P \<alpha> Q \<Longrightarrow> A \<subseteq> B \<Longrightarrow> semantics B P \<alpha> Q"
+  using semantics_monotonic
+  by (metis sup.order_iff sup_commute)
+lemma connection_mono_gen:
+  "A \<subseteq> connection A"
+  by (simp add: connection.con_in subsetI)
+
+lemma connection_mono_gen2:
+  "A \<subseteq> connection B \<Longrightarrow> connection A \<subseteq> connection B"
+  by (metis connection_idem connection_monotonic_simp le_iff_sup)
+
+lemma semantics_mono_con_gen: 
+  "semantics A P \<alpha> Q \<Longrightarrow> A \<subseteq> connection B \<Longrightarrow> semantics B P \<alpha> Q"
+  apply (frule semantics.induct)
+        apply (simp_all add:semantics.intros semantics_monotonic)
+  sorry
+
+
+
 lemma semantics_swap_frame_with_con_rev:
   assumes "semantics A P \<alpha> Q"
   and "A = connection B"
   shows "semantics B P \<alpha> Q"
-  (*Sorry HERE TODO *)
-  using assms
-  apply - 
-  apply (frule semantics.induct)
-        apply (simp_all add:semantics.intros  semantics_monotonic)
-  
-  sorry
-
+  using assms semantics_mono_con_gen by blast
 
 lemma semantics_swap_frame:
   assumes "semantics A P \<alpha> Q"
   and "connection A = connection B"
   shows "semantics B P \<alpha> Q"
-  (* TODO *)
   using assms 
   using semantics_swap_frame_with_con_rev
   using semantics_swap_frame_with_con by blast
@@ -376,13 +396,37 @@ lemma trace_eq_stuck:
   
 
 subsection "Question 3 (c)"
+lemma trace_stuck_is_nil:
+  "stuck P \<Longrightarrow> trace_eq P Nil"
+  apply (unfold trace_eq_def stuck_def traces_of_def)
+  apply safe 
+  apply (metis list_trans.simps(1) list_trans.simps(2) neq_Nil_conv nil)
+  by (metis list.exhaust list_trans.simps(1) list_trans.simps(2) nil)
+
+lemma stuck_is_stuck:
+  "stuck P  \<Longrightarrow> list_trans {} P [] P \<and> stuck P"
+  by auto
+
+lemma stuck_is_empty_list:
+  "stuck P \<Longrightarrow> traces_of P = {[]}"
+  apply (unfold traces_of_def)
+  apply auto
+  by (metis list.exhaust list_trans.simps(2) stuck_def)
+
+lemma nil_is_smallest_trace:
+  "traces_of P \<subseteq> traces_of (Par P Nil)"
+  apply (unfold traces_of_def)
+ 
+  sorry 
 
 lemma traces_of_monotonic:
   assumes "stuck R"
   shows "traces_of P \<subseteq> traces_of (Par P R)"
-  apply safe 
-  apply (unfold traces_of_def)
-  
+  using assms 
+  apply -
+  apply (induction P arbitrary:R)
+      apply (unfold traces_of_def)
+  sledgehammer
   sorry
 
 subsection "Question 3 (d)"
@@ -397,7 +441,7 @@ lemma traces_of_not_antimonotonic:
   shows "False"
   (* TODO *)
 
-  oops
+  sorry
 
 subsection "Question 3 (f)"
 
@@ -419,39 +463,55 @@ lemma semantics_par_assoc2:
   sorry
 
 subsection "Question 3 (g)"
-
 lemma list_trans_par_assoc:
   "list_trans A (Par (Par P Q) S) tr (Par (Par P' Q') S') =
        list_trans A (Par P (Par Q S)) tr (Par P' (Par Q' S'))"
   (* TODO *)
-  oops
+  apply (unfold list_trans_def)
+  apply safe
+  sorry
 
 subsection "Question 3 (h)"
-
 lemma stuck_par:
   "stuck(Par P Q) = (stuck P \<and> stuck Q)"
-  (* TODO *)
-  oops
+  apply safe 
+  using semantics_monotonic semantics_par_l stuck_def apply fastforce 
+  using semantics_monotonic semantics_par_r stuck_def apply fastforce
 
+  apply (unfold stuck_def traces_of_def)
+  using traces_of_monotonic
+  apply (induct)  
+    apply (smt Collect_mono_iff list_trans.simps(1) stuck_def traces_of_def)
+   apply (smt Collect_mono_iff list_trans.simps(1) stuck_def sup_bot_left 
+      traces_of_def traces_of_monotonic)
+  by (smt Collect_mono_iff list_trans.simps(1) stuck_def 
+      sup_bot_left traces_of_def traces_of_monotonic)
+  
 subsection "Question 3 (i)"
-
 lemma trace_eq_par_assoc:
   shows "trace_eq (Par (Par P Q) S) (Par P (Par Q S))"
-  (* TODO *)
-  oops
+  apply (unfold trace_eq_def traces_of_def stuck_def)
+  apply safe 
+   apply (rule list.induct)
+    apply (simp_all add:semantics.intros)
+  sorry
 
 subsection "Question 3 (j)"
 
 lemma trace_eq_nil_par:
   shows "trace_eq P (Par P Nil)"
-  (* TODO *)
-  oops
+  apply (unfold trace_eq_def traces_of_def list_trans_def)
+  sorry
 
 subsection "Question 3 (k)"
 
 lemma trace_eq_par_comm:
   shows "trace_eq (Par P Q) (Par Q P)"
-  (* TODO *)
-  oops
+  apply (unfold trace_eq_def traces_of_def )
+  apply safe
+   apply simp_all
+  apply (rule list.induct)
+
+  sorry
 
 end
