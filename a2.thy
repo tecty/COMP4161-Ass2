@@ -153,12 +153,13 @@ lemma no_above_from_join_lemma_gen:
   using le_iff_sup subsetI
   by (metis con_is_refl is_refl.simps(1) subset_eq)
 
+lemma 
+  "\<forall> x \<in> A. x = Joinable d e \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
+  sorry
+
+
 lemma must_jump_by_above:
-  " a \<noteq> c \<Longrightarrow>(\<exists>b. a \<noteq>b \<and> Above a b\<in> A\<and> Above b c \<in> A) = (Above a c \<in> connection A )"
-  (* TODO *)
-  apply (safe)
-  using connection.con_in connection.con_trans apply blast
-  using not_refl_wont_derive_no_reason no_above_from_join_lemma_gen
+  "\<lbrakk>a \<noteq> c ;Above a c \<in> connection A\<rbrakk> \<Longrightarrow> (\<exists>b. a \<noteq>b \<and> Above a b\<in> A) "
   sorry
 
 lemma no_above_from_join_lemma:
@@ -263,6 +264,7 @@ inductive_cases
   par: "semantics A (Par P Q) x R" and
   nil: "semantics A Nil x R" and
   cond: "semantics A (Cond cond) x R"
+print_theorems
 
 subsection "Questions 2 (a)-(c)"
 
@@ -321,13 +323,25 @@ lemma connection_mono_gen2:
   "A \<subseteq> connection B \<Longrightarrow> connection A \<subseteq> connection B"
   by (metis connection_idem connection_monotonic_simp le_iff_sup)
 
-lemma semantics_mono_con_gen: 
+lemma semantics_frame_simple:
+  "semantics {} P \<alpha> R \<Longrightarrow> semantics (frame P) P \<alpha> R"
+  using semantics_mono_gen by blast
+
+lemma semantics_simple_par:
+  "semantics A P \<alpha> Q  \<Longrightarrow> semantics (A \<union> frame P \<union> frame Q) P \<alpha> Q "
+  by (simp add: semantics_monotonic)
+
+lemma 
+  "semantics A P \<alpha> R \<Longrightarrow> semantics A (Par P Q) \<alpha> R"
+
+  sorry 
+
+
+lemma semantics_mono_con_gen:
   "semantics A P \<alpha> Q \<Longrightarrow> A \<subseteq> connection B \<Longrightarrow> semantics B P \<alpha> Q"
   apply (frule semantics.induct)
         apply (simp_all add:semantics.intros semantics_monotonic)
   sorry
-
-
 
 lemma semantics_swap_frame_with_con_rev:
   assumes "semantics A P \<alpha> Q"
@@ -414,19 +428,23 @@ lemma stuck_is_empty_list:
   by (metis list.exhaust list_trans.simps(2) stuck_def)
 
 lemma nil_is_smallest_trace:
-  "traces_of P \<subseteq> traces_of (Par P Nil)"
-  apply (unfold traces_of_def)
- 
-  sorry 
+  "stuck P \<Longrightarrow> traces_of P \<subseteq> traces_of Q"
+  apply safe
+  apply (unfold traces_of_def list_trans_def)
+  apply (rule semantics.inducts)
+        apply (simp_all add:semantics.intros)
+
+  sorry
+
+lemma "\<forall>p. \<not> stuck p \<or> traces_of p = {[]}"
+  using stuck_is_empty_list traces_of_def by auto
 
 lemma traces_of_monotonic:
   assumes "stuck R"
   shows "traces_of P \<subseteq> traces_of (Par P R)"
   using assms 
   apply -
-  apply (induction P arbitrary:R)
-      apply (unfold traces_of_def)
-  sledgehammer
+
   sorry
 
 subsection "Question 3 (d)"
@@ -439,7 +457,6 @@ subsection "Question 3 (e)"
 lemma traces_of_not_antimonotonic:
   assumes "\<And>P R. stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
   shows "False"
-  (* TODO *)
 
   sorry
 
