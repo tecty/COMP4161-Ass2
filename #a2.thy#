@@ -107,7 +107,6 @@ lemma join_refl: "Joinable a a \<in> connection A"
 lemma con_is_refl:
   assumes "is_refl \<phi>"
   shows "\<phi> \<in> connection A"
-  (* TODO *)
   using assms 
   apply (unfold is_refl_def)
   apply induct
@@ -127,55 +126,12 @@ lemma connection_filter_refl:
   by (metis DiffI connection.con_in mem_Collect_eq)
   
 (* 1-h *)
-(*
-lemma joinable_or_above:
-  "x \<in> A \<Longrightarrow>\<exists> a b. x = Joinable a b \<or> x = Above a b"
-  apply induct by blast +
-
-lemma only_joinable_set:
-  "\<And>a b. Above a b \<notin> A \<Longrightarrow> (\<forall> x. x \<in> A \<Longrightarrow> x = Joinable c d)"
-  by simp
-
-lemma not_refl_wont_derive_nil:
-  "\<And>a b . a \<noteq> b \<Longrightarrow> Above a b \<notin> connection {} "
-  apply safe
-  using connection.inducts
-  using connection_nil 
-  using is_refl.simps(1) by blast
-
-
-lemma no_above_from_join_lemma_gen:
-  "\<forall> x \<in> A. x = Above c c \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
-  using connection_idem connection_monotonic not_refl_wont_derive_nil
-  using le_iff_sup subsetI
-  by (metis con_is_refl is_refl.simps(1) subset_eq)
-
-lemma 
-  "\<forall> x \<in> A. x = Joinable d e \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
-  sorry
-
-
-lemma must_jump_by_above:
-  "\<lbrakk>a \<noteq> c ;Above a c \<in> connection A\<rbrakk> \<Longrightarrow> (\<exists>b. a \<noteq>b \<and> Above a b\<in> A) "
-  sorry
-*)
 
 lemma not_refl_wont_derive_no_reason:
   "\<lbrakk>a \<noteq> b; Above a b \<notin> A; Above a c \<in> A \<and> Above c b \<in> A \<rbrakk> \<Longrightarrow> Above a b \<in> connection A"
   using connection.con_in connection.con_trans 
   by blast
-
-thm connection.simps[where a ="Above a b" for a b, simplified]
-lemma" \<And>ba. a \<noteq> b \<Longrightarrow> (\<And>a b. condition.Above a b \<notin> A) \<Longrightarrow> condition.Above a ba \<in> connection A \<Longrightarrow> condition.Above ba b \<in> connection A \<Longrightarrow> False"
-
-
-lemma connection_refer_above:
-  "\<lbrakk> a \<noteq> b ;condition.Above a b \<in> connection A \<rbrakk>\<Longrightarrow>
-   (\<And>a b. condition.Above a b \<notin> A) \<Longrightarrow> False"
-  apply (subst (asm) connection.simps[where a ="Above a b" for a b, simplified])
-  apply clarsimp
-  sorry 
-thm connection.inducts 
+  
 
 lemma no_above_from_join_lemma:
   assumes "Above a b \<in> connection A"
@@ -183,16 +139,9 @@ lemma no_above_from_join_lemma:
 shows "a = b"
   using assms 
   apply - 
-  apply (induction "a=b")
-  by (auto intro:connection_refer_above)+
-  
+  apply (induct "Above a b" arbitrary: a b rule:connection.inducts)
+  by simp+
 
-(*
-  using connection_filter_refl 
-  using assms 
-  using must_jump_by_above
-  by meson
-*)
 (* 1-i *)
 lemma connection_compose:
   assumes "\<phi> \<in> connection(C \<union> D)"
@@ -352,11 +301,20 @@ lemma semantics_simple_par:
   by (simp add: semantics_monotonic)
 
 
-
+thm semantics.inducts
 lemma semantics_mono_con_gen:
   "semantics A P \<alpha> Q \<Longrightarrow> A \<subseteq> connection B \<Longrightarrow> semantics B P \<alpha> Q"
-  
-  sorry
+  apply (induct A P \<alpha> Q arbitrary: B rule:semantics.inducts)
+       apply (auto intro:semantics.intros )
+     apply (meson connection_mono_gen connection_monotonic_simp
+      inf_sup_ord(4) semantics_par_l subset_trans)
+    apply (meson Un_upper2 connection_mono_gen 
+      connection_monotonic_simp dual_order.trans semantics_par_r)
+   apply (smt connection_compose connection_mono_gen 
+      connection_monotonic_simp le_sup_iff semantics_com_l subset_trans)
+  by (smt connection_compose connection_mono_gen
+      connection_monotonic_simp le_sup_iff semantics_com_r subset_trans)
+
 (*
 lemma 
   "semantics A P \<alpha> R \<Longrightarrow> semantics A (Par P Q) \<alpha> R"
@@ -452,23 +410,19 @@ lemma stuck_is_empty_list:
   apply auto
   by (metis list.exhaust list_trans.simps(2) stuck_def)
 
-lemma nil_is_smallest_trace:
-  "stuck P \<Longrightarrow> traces_of P \<subseteq> traces_of Q"
-  apply safe
-  apply (unfold traces_of_def list_trans_def)
-  apply (rule semantics.inducts)
-        apply (simp_all add:semantics.intros)
-
-  sorry
-
 lemma "\<forall>p. \<not> stuck p \<or> traces_of p = {[]}"
   using stuck_is_empty_list traces_of_def by auto
+
+thm semantics.inducts
 
 lemma traces_of_monotonic:
   assumes "stuck R"
   shows "traces_of P \<subseteq> traces_of (Par P R)"
   using assms 
   apply -
+  unfolding traces_of_def  stuck_def 
+  apply safe 
+  apply (induct "Par P R" arbitrary: P)
 
   sorry
 
@@ -482,10 +436,33 @@ subsection "Question 3 (e)"
 lemma traces_of_not_antimonotonic:
   assumes "\<And>P R. stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
   shows "False"
-
-  sorry
+  using assms 
+   apply -
+  unfolding stuck_def traces_of_def 
+   sorry
 
 subsection "Question 3 (f)"
+lemma semantics_par_assoc0:
+  assumes "semantics A (Par P Q) \<alpha> R"
+  shows "\<exists>P' Q' .
+           R = Par P' Q' \<and>
+           semantics A (Par P Q) \<alpha> (Par P' Q')"
+  using assms 
+  apply - 
+  unfolding stuck_def traces_of_def 
+  apply (induct A "(Par P Q)" \<alpha> R arbitrary: P Q rule: semantics.induct)
+  apply (simp_all add:semantics.intros)
+  done
+
+lemma semantics_par_assoc1_gen:
+  assumes "semantics A (Par P (Par Q S)) \<alpha> (Par P' (Par Q' S'))"
+  shows "semantics A (Par (Par P Q) S) \<alpha> (Par (Par P' Q') S')" 
+  using assms 
+  apply (induct A "(Par P (Par Q S))" \<alpha> "(Par P' (Par Q' S'))" arbitrary: P Q S rule:semantics.inducts)
+  apply (simp_all add:semantics.intros)
+     apply (simp add: inf_sup_aci(5) inf_sup_aci(7) semantics_par_l)
+  sledgehammer
+
 
 lemma semantics_par_assoc1:
   assumes "semantics A (Par P (Par Q S)) \<alpha> R"
@@ -493,7 +470,12 @@ lemma semantics_par_assoc1:
            R = Par P' (Par Q' S') \<and>
            semantics A (Par (Par P Q) S) \<alpha> (Par (Par P' Q') S')"
   (* TODO *)
-  
+  using assms
+  apply -
+  unfolding stuck_def traces_of_def 
+  apply (induct A "(Par P (Par Q S))" \<alpha> "R" arbitrary: Q S P rule:semantics.induct )
+      apply (simp_all add:semantics.intros)
+
   sorry
 
 text \<open>
@@ -511,6 +493,10 @@ lemma list_trans_par_assoc:
   (* TODO *)
   apply (unfold list_trans_def)
   apply safe
+  thm semantics.inducts
+   apply induct
+  
+  apply (induct A "(Par (Par P Q) S)" tr "(Par (Par P' Q') S')" rule:semantics.inducts)
   sorry
 
 subsection "Question 3 (h)"
@@ -534,8 +520,9 @@ lemma trace_eq_par_assoc:
   shows "trace_eq (Par (Par P Q) S) (Par P (Par Q S))"
   apply (unfold trace_eq_def traces_of_def stuck_def)
   apply safe 
-   apply (rule list.induct)
-    apply (simp_all add:semantics.intros)
+  using list_trans_par_assoc
+  apply clarsimp
+
   sorry
 
 subsection "Question 3 (j)"
