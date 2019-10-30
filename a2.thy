@@ -107,7 +107,6 @@ lemma join_refl: "Joinable a a \<in> connection A"
 lemma con_is_refl:
   assumes "is_refl \<phi>"
   shows "\<phi> \<in> connection A"
-  (* TODO *)
   using assms 
   apply (unfold is_refl_def)
   apply induct
@@ -127,55 +126,12 @@ lemma connection_filter_refl:
   by (metis DiffI connection.con_in mem_Collect_eq)
   
 (* 1-h *)
-(*
-lemma joinable_or_above:
-  "x \<in> A \<Longrightarrow>\<exists> a b. x = Joinable a b \<or> x = Above a b"
-  apply induct by blast +
-
-lemma only_joinable_set:
-  "\<And>a b. Above a b \<notin> A \<Longrightarrow> (\<forall> x. x \<in> A \<Longrightarrow> x = Joinable c d)"
-  by simp
-
-lemma not_refl_wont_derive_nil:
-  "\<And>a b . a \<noteq> b \<Longrightarrow> Above a b \<notin> connection {} "
-  apply safe
-  using connection.inducts
-  using connection_nil 
-  using is_refl.simps(1) by blast
-
-
-lemma no_above_from_join_lemma_gen:
-  "\<forall> x \<in> A. x = Above c c \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
-  using connection_idem connection_monotonic not_refl_wont_derive_nil
-  using le_iff_sup subsetI
-  by (metis con_is_refl is_refl.simps(1) subset_eq)
-
-lemma 
-  "\<forall> x \<in> A. x = Joinable d e \<Longrightarrow> Above a b \<in> connection A \<Longrightarrow> a = b"
-  sorry
-
-
-lemma must_jump_by_above:
-  "\<lbrakk>a \<noteq> c ;Above a c \<in> connection A\<rbrakk> \<Longrightarrow> (\<exists>b. a \<noteq>b \<and> Above a b\<in> A) "
-  sorry
-*)
 
 lemma not_refl_wont_derive_no_reason:
   "\<lbrakk>a \<noteq> b; Above a b \<notin> A; Above a c \<in> A \<and> Above c b \<in> A \<rbrakk> \<Longrightarrow> Above a b \<in> connection A"
   using connection.con_in connection.con_trans 
   by blast
-
-thm connection.simps[where a ="Above a b" for a b, simplified]
-lemma" \<And>ba. a \<noteq> b \<Longrightarrow> (\<And>a b. condition.Above a b \<notin> A) \<Longrightarrow> condition.Above a ba \<in> connection A \<Longrightarrow> condition.Above ba b \<in> connection A \<Longrightarrow> False"
-
-
-lemma connection_refer_above:
-  "\<lbrakk> a \<noteq> b ;condition.Above a b \<in> connection A \<rbrakk>\<Longrightarrow>
-   (\<And>a b. condition.Above a b \<notin> A) \<Longrightarrow> False"
-  apply (subst (asm) connection.simps[where a ="Above a b" for a b, simplified])
-  apply clarsimp
-  sorry 
-thm connection.inducts 
+  
 
 lemma no_above_from_join_lemma:
   assumes "Above a b \<in> connection A"
@@ -183,16 +139,9 @@ lemma no_above_from_join_lemma:
 shows "a = b"
   using assms 
   apply - 
-  apply (induction "a=b")
-  by (auto intro:connection_refer_above)+
-  
+  apply (induct "Above a b" arbitrary: a b rule:connection.inducts)
+  by simp+
 
-(*
-  using connection_filter_refl 
-  using assms 
-  using must_jump_by_above
-  by meson
-*)
 (* 1-i *)
 lemma connection_compose:
   assumes "\<phi> \<in> connection(C \<union> D)"
@@ -288,6 +237,8 @@ print_theorems
 
 subsection "Questions 2 (a)-(c)"
 
+
+
 (* 2-a *)
 lemma semantics_monotonic:
   assumes "semantics A P \<alpha> Q"
@@ -352,11 +303,20 @@ lemma semantics_simple_par:
   by (simp add: semantics_monotonic)
 
 
-
+thm semantics.inducts
 lemma semantics_mono_con_gen:
   "semantics A P \<alpha> Q \<Longrightarrow> A \<subseteq> connection B \<Longrightarrow> semantics B P \<alpha> Q"
-  
-  sorry
+  apply (induct A P \<alpha> Q arbitrary: B rule:semantics.inducts)
+       apply (auto intro:semantics.intros )
+     apply (meson connection_mono_gen connection_monotonic_simp
+      inf_sup_ord(4) semantics_par_l subset_trans)
+    apply (meson Un_upper2 connection_mono_gen 
+      connection_monotonic_simp dual_order.trans semantics_par_r)
+   apply (smt connection_compose connection_mono_gen 
+      connection_monotonic_simp le_sup_iff semantics_com_l subset_trans)
+  by (smt connection_compose connection_mono_gen
+      connection_monotonic_simp le_sup_iff semantics_com_r subset_trans)
+
 (*
 lemma 
   "semantics A P \<alpha> R \<Longrightarrow> semantics A (Par P Q) \<alpha> R"
@@ -378,8 +338,7 @@ lemma semantics_swap_frame:
   shows "semantics B P \<alpha> Q"
   using assms 
   apply - 
-
-  apply (induction  rule:connection.inducts)
+  oops 
 
 
 section "Part 3"
@@ -400,6 +359,23 @@ definition traces_of :: "process \<Rightarrow> action list set"
 
 definition trace_eq :: "process \<Rightarrow> process \<Rightarrow> bool"
   where "trace_eq P Q = (traces_of P = traces_of Q)"
+
+lemmas par_simp = semantics.simps[where ?a2.0="Par P Q" for P Q,simplified]
+
+(*Some general lemma *)
+lemma par_connection:
+ "connection (A \<union> frame P \<union> frame Q) = connection (A \<union> frame (Par P Q))" by (simp add: sup_assoc)
+
+lemma par_connection_swap:
+ "connection (A \<union> frame (Par Q P)) = connection (A \<union> frame (Par P Q))"
+
+  by (simp add: sup_commute)
+
+lemma par_connection_assoc:
+"connection (A \<union> frame (Par (Par P Q) R)) = connection (A \<union> frame (Par P (Par Q R)))"
+  by (metis connection_union_simp par_connection)
+  
+
 
 subsection "Question 3 (a)"
 
@@ -443,7 +419,7 @@ lemma trace_stuck_is_nil:
   by (metis list.exhaust list_trans.simps(1) list_trans.simps(2) nil)
 
 lemma stuck_is_stuck:
-  "stuck P  \<Longrightarrow> list_trans {} P [] P \<and> stuck P"
+  "stuck P \<Longrightarrow> list_trans {} P [] P \<and> stuck P"
   by auto
 
 lemma stuck_is_empty_list:
@@ -452,23 +428,31 @@ lemma stuck_is_empty_list:
   apply auto
   by (metis list.exhaust list_trans.simps(2) stuck_def)
 
-lemma nil_is_smallest_trace:
-  "stuck P \<Longrightarrow> traces_of P \<subseteq> traces_of Q"
-  apply safe
-  apply (unfold traces_of_def list_trans_def)
-  apply (rule semantics.inducts)
-        apply (simp_all add:semantics.intros)
-
-  sorry
-
 lemma "\<forall>p. \<not> stuck p \<or> traces_of p = {[]}"
   using stuck_is_empty_list traces_of_def by auto
+
+lemma "semantics A P (LInput x) Q \<Longrightarrow> stuck R \<Longrightarrow> 
+  \<exists>P'. Q = Par P' R \<and> semantics A P (LInput x) P'"
+  oops
+
+lemma semantics_trace_subset: 
+  " semantics A P tr Q \<Longrightarrow> stuck R \<Longrightarrow> semantics A (Par P R) tr Q "
+  unfolding stuck_def
+  apply (induct tr arbitrary: A P  R)
+    apply (simp add:par_simp)
+    apply (rule disjI1)
+    oops 
+  
+    
 
 lemma traces_of_monotonic:
   assumes "stuck R"
   shows "traces_of P \<subseteq> traces_of (Par P R)"
   using assms 
   apply -
+  unfolding traces_of_def  stuck_def 
+  apply safe 
+  apply (induct "Par P R" arbitrary: P)
 
   sorry
 
@@ -479,22 +463,171 @@ text \<open>Feel free to give this answer in free-text comments,
 
 subsection "Question 3 (e)"
 
+
 lemma traces_of_not_antimonotonic:
   assumes "\<And>P R. stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
   shows "False"
-
+  using assms 
+  apply -
+  unfolding stuck_def traces_of_def 
   sorry
 
 subsection "Question 3 (f)"
+lemma semantics_par_assoc0:
+  assumes "semantics A (Par P Q) \<alpha> R"
+  shows "\<exists>P' Q' .
+           R = Par P' Q' \<and>
+           semantics A (Par P Q) \<alpha> (Par P' Q')"
+  using assms 
+  apply - 
+  unfolding stuck_def traces_of_def 
+  using par_simp by auto
+
 
 lemma semantics_par_assoc1:
   assumes "semantics A (Par P (Par Q S)) \<alpha> R"
   shows "\<exists>P' Q' S'.
            R = Par P' (Par Q' S') \<and>
            semantics A (Par (Par P Q) S) \<alpha> (Par (Par P' Q') S')"
-  (* TODO *)
+  using assms
+  apply -
+  apply (simp add:par_simp semantics.intros)
+  apply (induct \<alpha>)
+    apply (simp_all add:semantics.intros)
+    apply (smt sup_commute sup_left_commute)
+   apply (smt sup_assoc sup_commute)
   
-  sorry
+  apply (safe)
+          apply (simp add: Un_commute inf_sup_aci(7))
+         apply (simp add: Un_commute Un_left_commute)
+        apply (simp add: inf_sup_aci(6))
+proof -
+  fix n :: nat and P' :: process and m :: nat and Q' :: process and Q'a :: process
+  assume a1: "R = Par P' (Par Q Q'a)"
+  assume a2: "semantics (A \<union> (frame Q \<union> frame S)) P (LInput n) P'"
+  assume a3: "Joinable n m \<in> connection (A \<union> frame P \<union> (frame Q \<union> frame S))"
+  assume a4: "semantics (A \<union> frame P \<union> frame Q) S (LOutput m) Q'a"
+  have f5: "\<forall>n p. Input n p \<noteq> R"
+    using a1 by (meson process.simps(14))
+  have f6: "\<forall>n p. Output n p \<noteq> R"
+    using a1 by blast
+  have f7: "\<forall>c. Cond c \<noteq> R"
+    using a1 by (meson process.distinct(1))
+  have "process.Nil \<noteq> R"
+    using a1 by blast
+  then have "Par (sK71 R) (sK72 R) = R"
+    using f7 f6 f5
+    by (metis process.exhaust) (* > 1.0 s, timed out *)
+  then have "\<exists>n p pa na. semantics (A \<union> frame (Par Q S)) P (LInput na) pa \<and> Par P' (Par Q Q'a) = Par pa (Par Q p) \<and> semantics (A \<union> (frame P \<union> frame Q)) S (LOutput n) p \<and> Joinable na n \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S)"
+    using a4 a3 a2 by (metis (no_types) frame.simps(3) inf_sup_aci(6))
+  then have "\<exists>n p pa na. semantics (A \<union> (frame S \<union> frame Q)) P (LInput na) pa \<and> Par P' (Par Q Q'a) = Par pa (Par Q p) \<and> semantics (A \<union> (frame P \<union> frame Q)) S (LOutput n) p \<and> Joinable na n \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S)"
+    by (simp add: inf_sup_aci(5))
+  then show "\<exists>p pa pb. Par P' (Par Q Q'a) = Par p (Par pa pb) \<and> (pb = S \<and> (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P LTau p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q LTau pa \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q))) \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LOutput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q)))) \<or> p = P \<and> pa = Q \<and> semantics (A \<union> (frame P \<union> frame Q)) S LTau pb \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LInput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))) \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LOutput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))))"
+    by (metis (no_types) inf_sup_aci(6))
+next
+  fix n :: nat and P' :: process and m :: nat and Q' :: process and P'a :: process
+  assume a1: "semantics (A \<union> (frame Q \<union> frame S)) P (LInput n) P'"
+  assume a2: "Joinable n m \<in> connection (A \<union> frame P \<union> (frame Q \<union> frame S))"
+  assume "semantics (A \<union> frame P \<union> frame S) Q (LOutput m) P'a"
+  then have f3: "semantics (A \<union> frame (Par P S)) Q (LOutput m) P'a"
+    by (simp add: Un_left_commute sup.commute)
+  have "Joinable n m \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S))))"
+    using a2 by (simp add: connection_def)
+  then have "\<exists>p n na pa. semantics (frame Q \<union> (A \<union> frame S)) P (LInput na) p \<and> semantics (A \<union> frame (Par P S)) Q (LOutput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    using f3 a1 by (metis Un_left_commute)
+  then have "\<exists>p n na pa. semantics (A \<union> frame (Par P S)) Q (LOutput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (metis sup.commute)
+  then have "\<exists>p n na pa. semantics (frame P \<union> (A \<union> frame S)) Q (LOutput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (simp add: Un_left_commute)
+  then have "\<exists>p n na pa. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (metis sup.commute)
+  then have "\<exists>p n na pa. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> frame Q \<union> (frame P \<union> (A \<union> frame S)))) \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (simp add: Un_left_commute)
+  then show "\<exists>p pa pb. Par P' (Par P'a S) = Par p (Par pa pb) \<and> (pb = S \<and> (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P LTau p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q LTau pa \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q))) \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LOutput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q)))) \<or> p = P \<and> pa = Q \<and> semantics (A \<union> (frame P \<union> frame Q)) S LTau pb \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LInput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))) \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LOutput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))))"
+    by (metis connection_def sup.commute)
+next
+
+  fix n :: nat and P' :: process and m :: nat and Q' :: process and Q'a :: process
+  assume a1: "semantics (A \<union> (frame Q \<union> frame S)) P (LOutput n) P'"
+  assume a2: "Joinable n m \<in> connection (A \<union> frame P \<union> (frame Q \<union> frame S))"
+  assume "semantics (A \<union> frame P \<union> frame Q) S (LInput m) Q'a"
+  then have f3: "semantics (A \<union> frame (Par P Q)) S (LInput m) Q'a"
+    by (simp add: sup.commute sup_left_commute)
+  have "Joinable n m \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S))))"
+    using a2 by (simp add: connection_def sup.commute)
+  then have "\<exists>n p pa na. semantics (A \<union> (frame Q \<union> frame S)) P (LOutput na) pa \<and> semantics (A \<union> frame (Par P Q)) S (LInput n) p \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P' (Par Q Q'a) = Par pa (Par Q p)"
+    using f3 a1 by blast
+  then have "\<exists>n p pa na. semantics (frame Q \<union> (A \<union> frame S)) P (LOutput na) pa \<and> semantics (A \<union> frame (Par P Q)) S (LInput n) p \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P' (Par Q Q'a) = Par pa (Par Q p)"
+    by (simp add: sup_left_commute)
+  then have "\<exists>n p pa na. semantics (A \<union> frame (Par P Q)) S (LInput n) p \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) pa \<and> Par P' (Par Q Q'a) = Par pa (Par Q p)"
+    by (metis sup.commute)
+  then have "\<exists>n p pa na. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> (frame P \<union> frame Q)) S (LInput n) p \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) pa \<and> Par P' (Par Q Q'a) = Par pa (Par Q p)"
+    by (metis frame.simps(3))
+  then have "\<exists>n p pa na. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> frame S \<union> (A \<union> (frame P \<union> frame Q)))) \<and> semantics (A \<union> (frame P \<union> frame Q)) S (LInput n) p \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) pa \<and> Par P' (Par Q Q'a) = Par pa (Par Q p)"
+    by (simp add: sup.commute sup_left_commute)
+  then show "\<exists>p pa pb. Par P' (Par Q Q'a) = Par p (Par pa pb) \<and> (pb = S \<and> (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P LTau p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q LTau pa \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q))) \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LOutput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q)))) \<or> p = P \<and> pa = Q \<and> semantics (A \<union> (frame P \<union> frame Q)) S LTau pb \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LInput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))) \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LOutput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))))"
+    by (metis connection_def sup.commute)
+next
+  fix n :: nat and P' :: process and m :: nat and Q' :: process and P'a :: process
+  assume a1: "semantics (A \<union> (frame Q \<union> frame S)) P (LOutput n) P'"
+  assume a2: "Joinable n m \<in> connection (A \<union> frame P \<union> (frame Q \<union> frame S))"
+  assume "semantics (A \<union> frame P \<union> frame S) Q (LInput m) P'a"
+  then have f3: "semantics (A \<union> frame (Par P S)) Q (LInput m) P'a"
+    by (simp add: inf_sup_aci(5) inf_sup_aci(7))
+  have "Joinable n m \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S))))"
+    using a2 by (simp add: connection_def inf_sup_aci(5))
+  then have "\<exists>p n pa na. semantics (A \<union> (frame Q \<union> frame S)) P (LOutput na) p \<and> semantics (A \<union> frame (Par P S)) Q (LInput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    using f3 a1 by blast
+  then have "\<exists>p n pa na. semantics (frame Q \<union> (A \<union> frame S)) P (LOutput na) p \<and> semantics (A \<union> frame (Par P S)) Q (LInput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (simp add: inf_sup_aci(7))
+  then have "\<exists>p n pa na. semantics (A \<union> frame (Par P S)) Q (LInput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (metis inf_sup_aci(5))
+  then have "\<exists>p n pa na. semantics (frame P \<union> (A \<union> frame S)) Q (LInput n) pa \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (simp add: inf_sup_aci(7))
+  then have "\<exists>p n pa na. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (metis inf_sup_aci(5))
+  then have "\<exists>p n pa na. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> frame Q \<union> (frame P \<union> (A \<union> frame S)))) \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput na) p \<and> Par P' (Par P'a S) = Par p (Par pa S)"
+    by (simp add: inf_sup_aci(7))
+  then show "\<exists>p pa pb. Par P' (Par P'a S) = Par p (Par pa pb) \<and> (pb = S \<and> (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P LTau p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q LTau pa \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q))) \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LOutput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q)))) \<or> p = P \<and> pa = Q \<and> semantics (A \<union> (frame P \<union> frame Q)) S LTau pb \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LInput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))) \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LOutput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))))"
+    by (metis connection_def inf_sup_aci(5))
+next
+  fix Q' :: process and n :: nat and P' :: process and m :: nat and Q'a :: process
+  assume a1: "semantics (A \<union> frame P \<union> frame S) Q (LInput n) P'"
+  assume a2: "semantics (A \<union> frame P \<union> frame Q) S (LOutput m) Q'a"
+  assume a3: "Joinable n m \<in> connection (A \<union> frame P \<union> frame Q \<union> frame S)"
+  have f4: "semantics (A \<union> frame (Par P S)) Q (LInput n) P'"
+    using a1 by (simp add: sup.left_commute sup_commute)
+  have f5: "semantics (A \<union> frame (Par P Q)) S (LOutput m) Q'a"
+    using a2 by (simp add: sup.left_commute sup_commute)
+  have "Joinable n m \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S))))"
+    using a3 by (simp add: connection_def sup.left_commute)
+  then have "\<exists>n p na pa. semantics (A \<union> (frame P \<union> frame S)) Q (LInput na) pa \<and> semantics (A \<union> frame (Par P Q)) S (LOutput n) p \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P (Par P' Q'a) = Par P (Par pa p)"
+    using f5 f4 by auto
+  then have "\<exists>n p na pa. semantics (frame P \<union> (A \<union> frame S)) Q (LInput na) pa \<and> semantics (A \<union> frame (Par P Q)) S (LOutput n) p \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> Par P (Par P' Q'a) = Par P (Par pa p)"
+    by (simp add: sup.left_commute)
+  then have "\<exists>n p na pa. semantics (A \<union> frame (Par P Q)) S (LOutput n) p \<and> Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Par P (Par P' Q'a) = Par P (Par pa p)"
+    by (metis sup_commute)
+  then have "\<exists>n p na pa. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> A \<union> frame (Par P (Par Q S)))) \<and> semantics (A \<union> (frame P \<union> frame Q)) S (LOutput n) p \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Par P (Par P' Q'a) = Par P (Par pa p)"
+    by (metis frame.simps(3))
+  then have "\<exists>n p na pa. Joinable na n \<in> Collect (connectionp (\<lambda>c. c \<in> frame S \<union> (A \<union> (frame P \<union> frame Q)))) \<and> semantics (A \<union> (frame P \<union> frame Q)) S (LOutput n) p \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Par P (Par P' Q'a) = Par P (Par pa p)"
+    by (simp add: sup.left_commute sup_commute)
+  then show "\<exists>p pa pb. Par P (Par P' Q'a) = Par p (Par pa pb) \<and> (pb = S \<and> (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P LTau p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q LTau pa \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q))) \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LOutput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q)))) \<or> p = P \<and> pa = Q \<and> semantics (A \<union> (frame P \<union> frame Q)) S LTau pb \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LInput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))) \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LOutput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))))"
+    by (metis connection_def sup_commute)
+next
+  fix Q' :: process and n :: nat and P' :: process and m :: nat and Q'a :: process
+  assume a1: "R = Par P (Par P' Q'a)"
+  assume a2: "semantics (A \<union> frame P \<union> frame S) Q (LOutput n) P'"
+  assume a3: "semantics (A \<union> frame P \<union> frame Q) S (LInput m) Q'a"
+  assume "Joinable n m \<in> connection (A \<union> frame P \<union> frame Q \<union> frame S)"
+  then have "Joinable n m \<in> connection (A \<union> frame (Par P (Par Q S)))"
+    by (simp add: inf_sup_aci(6))
+  then have "\<exists>n p na pa. Par P (Par pa p) = R \<and> semantics (A \<union> frame (Par P S)) Q (LOutput na) pa \<and> semantics (A \<union> frame (Par P Q)) S (LInput n) p \<and> Joinable na n \<in> connection (A \<union> frame (Par P (Par Q S)))"
+    using a3 a2 a1 by (metis (full_types) frame.simps(3) inf_sup_aci(6))
+  then have "\<exists>n p na pa. semantics (A \<union> (frame S \<union> frame P)) Q (LOutput na) pa \<and> semantics (A \<union> frame (Par P Q)) S (LInput n) p \<and> Joinable na n \<in> connection (A \<union> frame (Par P (Par Q S))) \<and> Par P (Par P' Q'a) = Par P (Par pa p)"
+    using a1 by (simp add: inf_sup_aci(5))
+  then show "\<exists>p pa pb. Par P (Par P' Q'a) = Par p (Par pa pb) \<and> (pb = S \<and> (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P LTau p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q LTau pa \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LInput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q))) \<or> (\<exists>n. semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<and> (\<exists>na. semantics (A \<union> frame S \<union> frame P) Q (LOutput na) pa \<and> Joinable n na \<in> connection (A \<union> frame S \<union> frame P \<union> frame Q)))) \<or> p = P \<and> pa = Q \<and> semantics (A \<union> (frame P \<union> frame Q)) S LTau pb \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LOutput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LOutput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LInput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))) \<or> (\<exists>n. (pa = Q \<and> semantics (A \<union> frame S \<union> frame Q) P (LInput n) p \<or> p = P \<and> semantics (A \<union> frame S \<union> frame P) Q (LInput n) pa) \<and> (\<exists>na. semantics (A \<union> (frame P \<union> frame Q)) S (LOutput na) pb \<and> Joinable n na \<in> connection (A \<union> (frame P \<union> frame Q) \<union> frame S))))"
+    by (metis (no_types) frame.simps(3) inf_sup_aci(6))
+qed
 
 text \<open>
   This similar lemma will be needed later.
@@ -511,6 +644,10 @@ lemma list_trans_par_assoc:
   (* TODO *)
   apply (unfold list_trans_def)
   apply safe
+  thm semantics.inducts
+   apply induct
+  
+  apply (induct A "(Par (Par P Q) S)" tr "(Par (Par P' Q') S')" rule:semantics.inducts)
   sorry
 
 subsection "Question 3 (h)"
@@ -519,30 +656,26 @@ lemma stuck_par:
   apply safe 
   using semantics_monotonic semantics_par_l stuck_def apply fastforce 
   using semantics_monotonic semantics_par_r stuck_def apply fastforce
+  by (smt Collect_mono_iff list_trans.simps(1) stuck_def traces_of_def 
+      traces_of_monotonic)
 
-  apply (unfold stuck_def traces_of_def)
-  using traces_of_monotonic
-  apply (induct)  
-    apply (smt Collect_mono_iff list_trans.simps(1) stuck_def traces_of_def)
-   apply (smt Collect_mono_iff list_trans.simps(1) stuck_def sup_bot_left 
-      traces_of_def traces_of_monotonic)
-  by (smt Collect_mono_iff list_trans.simps(1) stuck_def 
-      sup_bot_left traces_of_def traces_of_monotonic)
-  
 subsection "Question 3 (i)"
 lemma trace_eq_par_assoc:
   shows "trace_eq (Par (Par P Q) S) (Par P (Par Q S))"
   apply (unfold trace_eq_def traces_of_def stuck_def)
   apply safe 
-   apply (rule list.induct)
-    apply (simp_all add:semantics.intros)
+  using list_trans_par_assoc
+  apply clarsimp
+
   sorry
 
 subsection "Question 3 (j)"
-
+thm semantics.inducts
 lemma trace_eq_nil_par:
   shows "trace_eq P (Par P Nil)"
   apply (unfold trace_eq_def traces_of_def list_trans_def)
+  apply safe 
+
   sorry
 
 subsection "Question 3 (k)"
@@ -552,7 +685,6 @@ lemma trace_eq_par_comm:
   apply (unfold trace_eq_def traces_of_def )
   apply safe
    apply simp_all
-  apply (rule list.induct)
 
   sorry
 
