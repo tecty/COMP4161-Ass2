@@ -352,7 +352,6 @@ primrec list_trans :: "_" where
 | "list_trans A P (\<alpha>#tr) Q =
     (\<exists>R. semantics A P \<alpha> R \<and> list_trans A R tr Q)"
 
-
 definition traces_of :: "process \<Rightarrow> action list set"
   where "traces_of P = {tr | tr. \<exists>Q. list_trans {} P tr Q \<and> stuck Q}"
 
@@ -431,46 +430,134 @@ lemma stuck_is_empty_list:
 lemma "\<forall>p. \<not> stuck p \<or> traces_of p = {[]}"
   using stuck_is_empty_list traces_of_def by auto
 
-lemma "semantics A P (LInput x) Q \<Longrightarrow> stuck R \<Longrightarrow> 
-  \<exists>P'. Q = Par P' R \<and> semantics A P (LInput x) P'"
-  oops
+lemma semantics_par_stuck: 
+  "semantics A P \<alpha> P' \<Longrightarrow> stuck Q \<Longrightarrow> semantics A (Par P Q) \<alpha> (Par P' Q)"
+  by (simp add: semantics_monotonic semantics_par_l)
 
-lemma semantics_trace_subset: 
-  " semantics A P tr Q \<Longrightarrow> stuck R \<Longrightarrow> semantics A (Par P R) tr Q "
-  unfolding stuck_def
-  apply (induct tr arbitrary: A P  R)
-    apply (simp add:par_simp)
-    apply (rule disjI1)
-    oops 
-  
-    
+lemma semantics_par_mono: 
+  "semantics A P \<alpha> P'\<Longrightarrow> semantics A (Par P Q) \<alpha> (Par P' Q)"
+  by (simp add: semantics_monotonic semantics_par_l)
+
+lemma par_stuck_stuck_is_stuck: 
+  "\<lbrakk>stuck P; stuck Q\<rbrakk> \<Longrightarrow> stuck (Par P Q)"
+  proof -
+    assume a1: "stuck P"
+    assume a2: "stuck Q"
+    obtain aa :: "process \<Rightarrow> action" and pp :: "process \<Rightarrow> process" where
+      f3: "\<forall>p. (stuck p \<or> semantics {} p (aa p) (pp p)) \<and> ((\<forall>a pa. \<not> semantics {} p a pa) \<or> \<not> stuck p)"
+  using stuck_def by moura
+    obtain aaa :: "process \<Rightarrow> action" and ppa :: "process \<Rightarrow> process" where
+      f4: "\<forall>C p a pa. semantics {} p (aaa p) (ppa p) \<or> \<not> semantics C p a pa"
+      using semantics_empty_env by moura
+    then have f5: "\<forall>p C a. \<not> semantics C Q a p"
+      using f3 a2 by blast
+    have "\<forall>p C a. \<not> semantics C P a p"
+      using f4 f3 a1 by blast
+  then have "\<not> semantics {} (Par P Q) (aa (Par P Q)) (pp (Par P Q))"
+    using f5 par_simp by presburger
+  then show ?thesis
+    using f3 by blast
+  qed
+
+lemma semantics_par_stuck_to_stuck: 
+  "semantics A P \<alpha> P'\<Longrightarrow>stuck P' \<Longrightarrow> stuck Q 
+  \<Longrightarrow> stuck (Par P' Q) \<and> semantics A (Par P Q) \<alpha> (Par P' Q)"
+  apply (rule conjI)
+   apply (erule par_stuck_stuck_is_stuck, assumption)
+  by (erule semantics_par_mono)
+
+lemma list_trans_stuck_one:
+  "list_trans A P \<alpha> P' \<Longrightarrow> stuck Q \<Longrightarrow>list_trans A (Par P Q) \<alpha> (Par P' Q)"
+  apply (induct \<alpha> arbitrary:A P P' Q )
+  apply ( force)
+  apply (clarsimp)
+  apply (rule_tac x="Par R Q" in exI)
+  apply (rule conjI)
+   apply (simp add: semantics_par_stuck)
+  by auto 
 
 lemma traces_of_monotonic:
   assumes "stuck R"
   shows "traces_of P \<subseteq> traces_of (Par P R)"
-  using assms 
-  apply -
+  using assms
   unfolding traces_of_def  stuck_def 
-  apply safe 
-  apply (induct "Par P R" arbitrary: P)
+  apply clarsimp
+  apply (rule_tac x="Par Q R" in  exI)
+  thm semantics_par_stuck
+  apply (rule conjI)
+   apply (rule list_trans_stuck_one)
+    apply assumption +
+   apply (unfold stuck_def, force)
+  using par_stuck_stuck_is_stuck stuck_def by auto
 
-  sorry
+
+\<comment> \<open>Some 3-d helper lemma\<close>
+
+lemma cond_stuck:
+  "p = Cond \<phi> \<Longrightarrow> stuck p"
+  apply (unfold stuck_def)
+  using cond by blast
+
+lemma sub_stuck_par_stuck:
+  "stuck (Par Q R) \<Longrightarrow> stuck Q \<and> stuck R"
+  unfolding stuck_def
+  apply (rule conjI)  
+  using semantics_par_mono apply blast
+  using semantics_mono_con_gen semantics_par_r by blast
+
+lemma sub_stuck_par_stuck2:
+  " stuck Q \<and> stuck R \<Longrightarrow> stuck (Par Q R)"
+  by (simp add: par_stuck_stuck_is_stuck)
+
+lemma input_is_not_stuck:
+  "stuck (Input n P) \<Longrightarrow> false"
+  using semantics_input stuck_def by blast
+
+lemma output_is_not_stuck:
+  "stuck (Output n P) \<Longrightarrow> false"
+  using semantics_output stuck_def by blast
+
+lemma nil_stuck:
+  "stuck Nil"
+  using nil stuck_def by auto 
 
 subsection "Question 3 (d)"
 
 text \<open>Feel free to give this answer in free-text comments,
       or as Isabelle definitions. \<close>
 
+lemma frame_from_stuck_action:
+  "stuck R \<Longrightarrow> semantics (A \<union> frame R) P \<alpha> P' \<Longrightarrow>
+    semantics A (Par P R) \<alpha> (Par P' R)"
+  by (auto intro:semantics.intros)
+
+\<comment> \<open>the basic situation, the x is in traces of (Par P Q) while not in traces of  P\<close>
+definition proc1 where "proc1=Input 2 (Cond (Above 0 2))"
+definition proc2 where "proc2=Output 1 (Cond (Above 0 1))"
+
+
+
+
+lemma exi_trace_in_stuck:
+  "stuck R \<Longrightarrow> \<exists>x. x \<in> traces_of (Par P R) \<and> x \<notin> traces_of P"
+  unfolding stuck_def traces_of_def
+
+  
+
+  sorry
+
+lemma "stuck P \<Longrightarrow> stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
+  by (simp add: par_stuck_stuck_is_stuck stuck_is_empty_list)
+
 subsection "Question 3 (e)"
-
-
 lemma traces_of_not_antimonotonic:
   assumes "\<And>P R. stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
   shows "False"
   using assms 
   apply -
   unfolding stuck_def traces_of_def 
-  sorry
+  by (meson assms exi_trace_in_stuck nil_stuck subsetD)
+  
 
 subsection "Question 3 (f)"
 lemma semantics_par_assoc0:
