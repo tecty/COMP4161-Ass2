@@ -237,8 +237,6 @@ print_theorems
 
 subsection "Questions 2 (a)-(c)"
 
-
-
 (* 2-a *)
 lemma semantics_monotonic:
   assumes "semantics A P \<alpha> Q"
@@ -316,20 +314,6 @@ lemma semantics_mono_con_gen:
       connection_monotonic_simp le_sup_iff semantics_com_l subset_trans)
   by (smt connection_compose connection_mono_gen
       connection_monotonic_simp le_sup_iff semantics_com_r subset_trans)
-
-(*
-lemma 
-  "semantics A P \<alpha> R \<Longrightarrow> semantics A (Par P Q) \<alpha> R"
-  sorry 
-
-
-
-lemma semantics_swap_frame_with_con_rev:
-  assumes "semantics A P \<alpha> Q"
-  and "A = connection B"
-  shows "semantics B P \<alpha> Q"
-  using assms semantics_mono_con_gen by blast
-*)
 
 thm connection.inducts
 lemma semantics_swap_frame:
@@ -532,18 +516,25 @@ lemma frame_from_stuck_action:
   by (auto intro:semantics.intros)
 
 \<comment> \<open>the basic situation, the x is in traces of (Par P Q) while not in traces of  P\<close>
-definition proc1 where "proc1=Input 2 (Cond (Above 0 2))"
-definition proc2 where "proc2=Output 1 (Cond (Above 0 1))"
+definition proc1 where "proc1=Output 1 (Cond (Above 2 0))"
+definition proc2 where "proc2=(Cond (Above 1 0))"
+
+lemma  "\<exists> Q. semantics {} (Par proc1 proc2) (LOutput 1) Q"
+  by (metis proc1_def semantics_output semantics_par_l)
 
 
+lemma "stuck proc2"
+  apply (unfold proc2_def)
+  using cond_stuck by blast 
+
+lemma "\<exists> Q. semantics {} proc1 (LOutput 1) Q"
+  unfolding proc1_def
+  using semantics_output by blast
 
 
 lemma exi_trace_in_stuck:
   "stuck R \<Longrightarrow> \<exists>x. x \<in> traces_of (Par P R) \<and> x \<notin> traces_of P"
   unfolding stuck_def traces_of_def
-
-  
-
   sorry
 
 lemma "stuck P \<Longrightarrow> stuck R \<Longrightarrow> traces_of (Par P R) \<subseteq> traces_of P"
