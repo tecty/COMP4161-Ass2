@@ -737,16 +737,31 @@ lemma semantics_par_must_par_in_post:
   apply (frule semantics.cases)
   by (auto intro:semantics.intros)
 
-lemma semantics_par_par_must_par_par_in_post:
+lemma semantics_par_par_must_par_par_in_post1:
   "semantics A (Par P (Par Q R)) \<alpha> S 
     \<Longrightarrow> \<exists> P' Q' R'. semantics A (Par P (Par Q R)) \<alpha> (Par P' (Par Q' R'))"
   using semantics_par_assoc1 by blast
 
+lemma semantics_par_par_must_par_par_in_post2:
+  "semantics A (Par (Par P Q) R) \<alpha> S 
+    \<Longrightarrow> \<exists> P' Q' R'. semantics A (Par (Par P Q) R) \<alpha> (Par (Par P' Q') R')"
+  using semantics_par_assoc2 by blast
+
+lemma 
+  "semantics A (Par (Par P Q) R) x S 
+     \<Longrightarrow> \<exists>S'. semantics A (Par P (Par Q R)) x S'"
+  apply (drule semantics_par_par_must_par_par_in_post2)
+  apply (erule exE)+
+  apply (rule_tac x="(Par  P'(Par Q' R'))" in exI)
+  using semantics_par_assoc2 by force
+  
 
 lemma list_trace_assoc1_gen:
   "list_trans A (Par (Par P Q) R) x S 
      \<Longrightarrow> \<exists>S'. list_trans A (Par P (Par Q S)) x S'"
-  sorry 
+  apply (frule semantics_par_par_must_par_par_in_post)
+  
+  sorry
  
 lemma trace_eq_par_assoc:
   shows "trace_eq (Par (Par P Q) S) (Par P (Par Q S))"
