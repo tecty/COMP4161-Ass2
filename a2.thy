@@ -359,7 +359,6 @@ lemma trace_eq_sym:
   assumes "trace_eq P Q"
     shows "trace_eq Q P"
   using assms trace_eq_def by auto 
-  
 
 lemma trace_eq_trans:
   assumes "trace_eq P Q"
@@ -562,7 +561,7 @@ lemma ltau_not_in_proc1_gen:
   unfolding proc1_def 
      apply (simp_all add:semantics.intros)
      apply clarsimp
-     apply (erule semantics.cases ; simp)+
+     apply (erule semantics.cases; simp)+
   apply clarsimp
   using connection_nil is_refl.simps(2) by blast
 
@@ -619,7 +618,48 @@ lemma semantics_par_assoc0:
   unfolding stuck_def traces_of_def 
   using par_simp by auto
 
-\<comment> \<open>TODO\<close>
+lemma semantics_par_par_l_ltau: 
+  "semantics (A \<union> frame P \<union> frame S) Q (LOutput n) Q' \<Longrightarrow>
+   semantics (A \<union> frame P \<union> frame Q) S (LInput m) S' \<Longrightarrow>
+   Joinable n m \<in> connection (A \<union> frame P \<union> frame Q \<union> frame S) 
+  \<Longrightarrow> semantics A (Par (Par P Q) S) LTau (Par (Par P Q') S')"
+  apply (simp add: semantics.simps[where ?a2.0="(Par (Par P Q) S)"])
+  by (smt Un_commute semantics_par_r sup_assoc)
+  
+lemma semantics_par_par_r_ltau:
+  "semantics (A \<union> frame P \<union> frame S) Q (LInput n) P' \<Longrightarrow>
+  semantics (A \<union> frame P \<union> frame Q) S (LOutput m) Q'a \<Longrightarrow>
+  Joinable n m \<in> connection (A \<union> frame P \<union> frame Q \<union> frame S)
+     \<Longrightarrow> semantics A (Par (Par P Q) S) LTau (Par (Par P P') Q'a)"
+  apply (simp add: semantics.simps[where ?a2.0="(Par (Par P Q) S)"])
+  by (smt Un_commute semantics_par_r sup_assoc)
+
+
+lemma semantics_com_par_par_l_ltau:
+  "semantics (A \<union> (frame Q \<union> frame S)) P (LOutput n) P' \<Longrightarrow>
+   semantics (A \<union> frame P) (Par Q S) (LInput m) Q' \<Longrightarrow>
+   Joinable n m \<in> connection (A \<union> frame P \<union> (frame Q \<union> frame S))
+    \<Longrightarrow> \<exists>Q'a S'. Q' = Par Q'a S' \<and> 
+      semantics A (Par (Par P Q) S) LTau (Par (Par P' Q'a) S')"
+  apply (subst (asm) par_simp)
+  apply clarsimp
+  apply safe 
+   apply (smt semantics_com_l semantics_par_l sup_assoc sup_commute)
+  by (smt frame.simps(3) semantics_com_l semantics_par_l sup.commute sup.left_commute)
+
+lemma semantics_com_par_par_r_ltau:
+  "semantics (A \<union> (frame Q \<union> frame S)) P (LInput n) P' \<Longrightarrow>
+   semantics (A \<union> frame P) (Par Q S) (LOutput m) Q' \<Longrightarrow>
+   Joinable n m \<in> connection (A \<union> frame P \<union> (frame Q \<union> frame S))
+    \<Longrightarrow> \<exists>Q'a S'. Q' = Par Q'a S' \<and>
+    semantics A (Par (Par P Q) S) LTau (Par (Par P' Q'a) S')"
+  apply (subst (asm) par_simp)
+  apply clarsimp
+  apply safe 
+   apply (simp add: inf_sup_aci(5) inf_sup_aci(7) semantics.intros(6) semantics_par_l)
+  by (smt frame.simps(3) semantics_com_r semantics_par_l sup_commute sup_left_commute)
+
+
 lemma semantics_par_assoc1:
   assumes "semantics A (Par P (Par Q S)) \<alpha> R"
   shows "\<exists>P' Q' S'.
@@ -627,28 +667,55 @@ lemma semantics_par_assoc1:
            semantics A (Par (Par P Q) S) \<alpha> (Par (Par P' Q') S')"
   using assms
   apply -
-  sorry 
+  apply (erule semantics.cases)
+       apply (simp_all add:semantics.intros)
+     apply clarsimp
+     apply (simp add: inf_sup_aci(7) semantics_par_l sup.commute)
+  apply (erule semantics.cases ;simp add:semantics.intros)
+       apply (smt Un_left_commute inf_sup_aci(5) semantics_par_l semantics_par_r)
+      apply (metis Un_assoc frame.simps(3) semantics_par_r)
+     apply (simp add:semantics_par_par_l_ltau)
+    apply (simp add: semantics_par_par_r_ltau)
+   apply clarsimp
+   apply (simp add: semantics_com_par_par_l_ltau)
+  apply clarsimp
+  apply (simp add: semantics_com_par_par_r_ltau)
+  done
+ 
 
 text \<open>
   This similar lemma will be needed later.
   You may use it without proof. \<close>
-\<comment> \<open>TODO\<close>
 lemma semantics_par_assoc2:
   "semantics A (Par (Par P Q) S) \<alpha> R \<Longrightarrow>
   \<exists> P' Q' S'. R = Par (Par P' Q') S' \<and> semantics A (Par P (Par Q S)) \<alpha> (Par P' (Par Q' S'))"
-  sorry
+  apply (erule semantics.cases)
+       apply (simp_all add:semantics.intros)
+     apply clarsimp
+     apply (subst (asm) par_simp)
+     apply (smt Un_commute frame.simps(3) semantics.intros(6)
+        semantics_com_l semantics_par_l semantics_par_r sup_assoc)
+    apply (metis frame.simps(3) semantics_par_r sup_assoc)
+   apply clarsimp
+  apply (subst (asm) par_simp, clarsimp)
+  apply (smt frame.simps(3) inf_sup_aci(6) semantics_com_l semantics_par_r sup.commute)
+  apply clarsimp
+  apply (subst (asm) par_simp, clarsimp)
+  apply safe 
+   apply (smt Un_assoc frame.simps(3) inf_sup_aci(5) semantics.intros(6) semantics_par_r)
+  by (smt semantics.intros(6) semantics_par_r sup.assoc sup.commute)
+
 
 subsection "Question 3 (g)"
-\<comment> \<open>TODO\<close>
 lemma list_trans_par_assoc:
   "list_trans A (Par (Par P Q) S) tr (Par (Par P' Q') S') =
        list_trans A (Par P (Par Q S)) tr (Par P' (Par Q' S'))"
   apply (unfold list_trans_def)
-  apply safe
-  thm semantics.inducts
-   apply induct
-  
-  sorry
+  apply (rule iffI)
+   apply (induct arbitrary: A P Q S P' Q' S' rule:list.induct; simp)
+   apply (metis (no_types, lifting) semantics_par_assoc2)
+  apply (induct arbitrary: A P Q S P' Q' S' rule:list.induct; simp)
+  by (metis (no_types, lifting) semantics_par_assoc1)
 
 subsection "Question 3 (h)"
 lemma stuck_par:
@@ -661,12 +728,36 @@ lemma stuck_par:
 
 subsection "Question 3 (i)"
 \<comment> \<open>TODO\<close>
+lemma stuck_assoc:
+  "stuck (Par (Par P Q) S) = stuck (Par P (Par Q S))"
+  using stuck_par by presburger
+
+lemma semantics_par_must_par_in_post:
+  "semantics A (Par P Q) \<alpha> S \<Longrightarrow> \<exists> P' Q'. semantics A (Par P Q) \<alpha> (Par P' Q')"
+  apply (frule semantics.cases)
+  by (auto intro:semantics.intros)
+
+lemma semantics_par_par_must_par_par_in_post:
+  "semantics A (Par P (Par Q R)) \<alpha> S 
+    \<Longrightarrow> \<exists> P' Q' R'. semantics A (Par P (Par Q R)) \<alpha> (Par P' (Par Q' R'))"
+  using semantics_par_assoc1 by blast
+
+
+lemma list_trace_assoc1_gen:
+  "list_trans A (Par (Par P Q) R) x S 
+     \<Longrightarrow> \<exists>S'. list_trans A (Par P (Par Q S)) x S'"
+  sorry 
+ 
 lemma trace_eq_par_assoc:
   shows "trace_eq (Par (Par P Q) S) (Par P (Par Q S))"
   apply (unfold trace_eq_def traces_of_def stuck_def)
-  apply safe 
-  using list_trans_par_assoc
+  apply (rule equalityI)
   apply clarsimp
+   apply (safe)
+   apply (frule list_trace_assoc1_gen)
+   apply clarsimp
+   apply (rule_tac x="S'" in exI)
+   apply (rule conjI)
 
   sorry
 
