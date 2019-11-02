@@ -705,7 +705,6 @@ lemma semantics_par_assoc2:
    apply (smt Un_assoc frame.simps(3) inf_sup_aci(5) semantics.intros(6) semantics_par_r)
   by (smt semantics.intros(6) semantics_par_r sup.assoc sup.commute)
 
-
 subsection "Question 3 (g)"
 lemma list_trans_par_assoc:
   "list_trans A (Par (Par P Q) S) tr (Par (Par P' Q') S') =
@@ -803,8 +802,6 @@ lemma trace_eq_par_assoc:
   using list_trace_par_par_post2 list_trans_par_assoc stuck_assoc by blast
  
 subsection "Question 3 (j)"
-\<comment> \<open>TODO\<close>
-
 lemma par_nil_is_origin:
   "semantics A (Par P Nil) tr (Par P' Nil) \<Longrightarrow> semantics A P tr P'"
   using nil par_simp by auto
@@ -831,7 +828,7 @@ lemma list_trans_par_nil:
   apply (rule_tac x="P'a" in exI)
   using par_nil_is_origin by blast
 
-lemma list_trans_par_has_par_in_post:
+lemma list_trans_par_nil_has_nil_in_post:
   "list_trans A (Par P Nil) tr S 
      \<Longrightarrow> \<exists> P'. S= (Par P' Nil) \<and> list_trans A (Par P Nil ) tr (Par P' Nil)"
   apply (induct tr arbitrary:A P P', force)
@@ -841,7 +838,7 @@ lemma list_trans_par_nil_gen:
   "list_trans A (Par P Nil) tr S \<Longrightarrow> \<exists> S'. list_trans A P tr S'"
   apply (induct tr arbitrary: A P S)
   apply auto[1]
-  using list_trans_par_has_par_in_post list_trans_par_nil by blast 
+  using list_trans_par_nil_has_nil_in_post list_trans_par_nil by blast 
   
 lemma trace_eq_nil_par:
   shows "trace_eq P (Par P Nil)"
@@ -850,17 +847,33 @@ lemma trace_eq_nil_par:
   apply clarsimp
   using list_trans_stuck_one nil_stuck par_stuck_stuck_is_stuck apply blast
   apply clarsimp
-  using list_trans_par_has_par_in_post list_trans_par_nil sub_stuck_par_stuck 
+  using list_trans_par_nil_has_nil_in_post list_trans_par_nil sub_stuck_par_stuck 
   by blast
 
 subsection "Question 3 (k)"
 
+lemma list_trans_par_has_par_in_post:
+  "list_trans A (Par P Q) tr S
+   \<Longrightarrow> \<exists> P' Q'. S=(Par P' Q') \<and> list_trans A (Par P Q) tr (Par P' Q')"
+  apply (induct tr arbitrary: A P Q S, auto)
+  by (metis semantics_par_assoc0)
+\<comment> \<open>the old one is not strong enough\<close>
+lemma semantics_par_assoc0_real:
+  "semantics A (Par P Q) \<alpha> R \<Longrightarrow> 
+    \<exists> P' Q'. R=Par P' Q' \<and> semantics A (Par Q P) \<alpha> (Par Q' P')"
+  apply (subst (asm) par_simp)
+  apply safe 
+     apply (auto intro:semantics.intros)  
+   apply (smt connection.con_mirror semantics_com_r sup_assoc sup_commute)
+  by (smt connection.con_mirror semantics_com_l sup_assoc sup_commute)  
+
+
 lemma list_trans_assoc: 
   "list_trans A (Par P Q) tr S
      \<Longrightarrow> \<exists> P' Q'. S= (Par P' Q') \<and> list_trans A (Par Q P) tr (Par Q' P')"
-  apply (induct tr arbitrary: A P Q S)
-  sorry 
-
+  apply (induct tr arbitrary: A P Q S, auto)
+  by (metis semantics_par_assoc0_real)
+  
 lemma trace_eq_par_comm:
   shows "trace_eq (Par P Q) (Par Q P)"
   apply (unfold trace_eq_def traces_of_def )
