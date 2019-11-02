@@ -727,7 +727,6 @@ lemma stuck_par:
       traces_of_monotonic)
 
 subsection "Question 3 (i)"
-\<comment> \<open>TODO\<close>
 lemma stuck_assoc:
   "stuck (Par (Par P Q) S) = stuck (Par P (Par Q S))"
   using stuck_par by presburger
@@ -747,51 +746,125 @@ lemma semantics_par_par_must_par_par_in_post2:
     \<Longrightarrow> \<exists> P' Q' R'. semantics A (Par (Par P Q) R) \<alpha> (Par (Par P' Q') R')"
   using semantics_par_assoc2 by blast
 
-lemma 
+lemma semantics_par_assoc1_gen:
   "semantics A (Par (Par P Q) R) x S 
      \<Longrightarrow> \<exists>S'. semantics A (Par P (Par Q R)) x S'"
   apply (drule semantics_par_par_must_par_par_in_post2)
   apply (erule exE)+
   apply (rule_tac x="(Par  P'(Par Q' R'))" in exI)
   using semantics_par_assoc2 by force
-  
 
-lemma list_trace_assoc1_gen:
+lemma semantics_par_assoc2_gen:
+  "semantics A (Par P (Par Q R)) x S 
+     \<Longrightarrow> \<exists>S'. semantics A (Par (Par P Q) R) x S'"
+  using semantics_par_assoc1 by blast
+
+lemma semantics_par_assoc1_stuck_gen:
+  "semantics A (Par (Par P Q) R) x S \<Longrightarrow> stuck S 
+     \<Longrightarrow> \<exists>S'. semantics A (Par P (Par Q R)) x S' \<and> stuck S'"
+  using semantics_par_assoc2 stuck_assoc by blast
+
+lemma semantics_par_assoc2_stuck_gen:
+  "semantics A (Par P (Par Q R)) x S \<Longrightarrow> stuck S 
+     \<Longrightarrow> \<exists>S'. semantics A (Par (Par P Q) R) x S' \<and> stuck S'"
+  using semantics_par_assoc1 stuck_assoc by blast
+
+lemma list_trace_par_par_post1:
   "list_trans A (Par (Par P Q) R) x S 
-     \<Longrightarrow> \<exists>S'. list_trans A (Par P (Par Q S)) x S'"
-  apply (frule semantics_par_par_must_par_par_in_post)
-  
-  sorry
- 
+     \<Longrightarrow> \<exists>P' Q' R'. S = (Par (Par P' Q') R')"
+  unfolding list_trans_def 
+  apply (induct arbitrary: A P Q R S rule:list.inducts,force)
+  by (smt list.simps(7) semantics_par_assoc2)
+
+lemma list_trace_par_par_post2:
+  "list_trans A (Par  P (Par Q R)) x S 
+     \<Longrightarrow> \<exists>P' Q' R'. S = (Par  P' (Par Q' R'))"
+  unfolding list_trans_def 
+  apply (induct arbitrary: A P Q R S rule:list.inducts,force)
+  by (smt list.simps(7) semantics_par_assoc1)
+
+lemma list_trans_par_assoc_gen1:
+  "list_trans A (Par (Par P Q) R) tr S \<Longrightarrow>
+    \<exists> S'. list_trans A (Par P (Par Q R)) tr S'"
+  using list_trace_par_par_post1 list_trans_par_assoc by blast
+
+lemma list_trans_par_assoc_gen2:
+  "list_trans A (Par P (Par Q R)) tr S \<Longrightarrow>
+    \<exists> S'. list_trans A (Par (Par P Q) R) tr S'"
+  using list_trace_par_par_post2 list_trans_par_assoc by blast
+
 lemma trace_eq_par_assoc:
   shows "trace_eq (Par (Par P Q) S) (Par P (Par Q S))"
-  apply (unfold trace_eq_def traces_of_def stuck_def)
+  apply (unfold trace_eq_def traces_of_def )
   apply (rule equalityI)
-  apply clarsimp
-   apply (safe)
-   apply (frule list_trace_assoc1_gen)
    apply clarsimp
-   apply (rule_tac x="S'" in exI)
-   apply (rule conjI)
-
-  sorry
-
+   using list_trace_par_par_post1 list_trans_par_assoc stuck_assoc apply blast
+  apply clarsimp
+  using list_trace_par_par_post2 list_trans_par_assoc stuck_assoc by blast
+ 
 subsection "Question 3 (j)"
 \<comment> \<open>TODO\<close>
+
+lemma par_nil_is_origin:
+  "semantics A (Par P Nil) tr (Par P' Nil) \<Longrightarrow> semantics A P tr P'"
+  using nil par_simp by auto
+
+lemma par_nil_has_nil_in_post:
+  "semantics A (Par P Nil) tr S \<Longrightarrow>\<exists> P'. S = (Par P' Nil) \<and> semantics A (Par P Nil) tr (Par P' Nil)"
+  apply (subst (asm) par_simp)
+  apply clarsimp
+  apply safe 
+     apply (auto intro: semantics_par_mono nil)
+  done
+
+lemma par_nil_is_origin_gen:
+  "semantics A (Par P Nil) tr S \<Longrightarrow>\<exists> S'.  semantics A P tr S'"
+  apply (frule par_nil_has_nil_in_post)
+  using par_nil_is_origin by blast
+
+lemma list_trans_par_nil:
+  "list_trans A (Par P Nil) tr (Par P' Nil) \<Longrightarrow> list_trans A P tr P'"
+  apply (induct tr arbitrary:A P P', force)
+  apply clarsimp
+  apply (frule par_nil_has_nil_in_post)
+  apply (erule exE)
+  apply (rule_tac x="P'a" in exI)
+  using par_nil_is_origin by blast
+
+lemma list_trans_par_has_par_in_post:
+  "list_trans A (Par P Nil) tr S 
+     \<Longrightarrow> \<exists> P'. S= (Par P' Nil) \<and> list_trans A (Par P Nil ) tr (Par P' Nil)"
+  apply (induct tr arbitrary:A P P', force)
+  using list_trans.simps(2) par_nil_has_nil_in_post by blast
+
+lemma list_trans_par_nil_gen: 
+  "list_trans A (Par P Nil) tr S \<Longrightarrow> \<exists> S'. list_trans A P tr S'"
+  apply (induct tr arbitrary: A P S)
+  apply auto[1]
+  using list_trans_par_has_par_in_post list_trans_par_nil by blast 
+  
 lemma trace_eq_nil_par:
   shows "trace_eq P (Par P Nil)"
-  apply (unfold trace_eq_def traces_of_def list_trans_def)
-  apply safe 
-
-  sorry
+  apply (unfold trace_eq_def traces_of_def)
+  apply (rule equalityI)
+  apply clarsimp
+  using list_trans_stuck_one nil_stuck par_stuck_stuck_is_stuck apply blast
+  apply clarsimp
+  using list_trans_par_has_par_in_post list_trans_par_nil sub_stuck_par_stuck 
+  by blast
 
 subsection "Question 3 (k)"
+
+lemma list_trans_assoc: 
+  "list_trans A (Par P Q) tr S
+     \<Longrightarrow> \<exists> P' Q'. S= (Par P' Q') \<and> list_trans A (Par Q P) tr (Par Q' P')"
+  apply (induct tr arbitrary: A P Q S)
+  sorry 
 
 lemma trace_eq_par_comm:
   shows "trace_eq (Par P Q) (Par Q P)"
   apply (unfold trace_eq_def traces_of_def )
   apply safe
-   apply simp_all
-  sorry
+  by (metis list_trans_assoc stuck_par sub_stuck_par_stuck)+
 
 end
